@@ -168,7 +168,36 @@
     text-align:center;pointer-events:auto;cursor:grab;user-select:none;
     box-shadow:0 2px 10px rgba(0,0,0,.35);max-width:88%;
   }
-  .telop-tag:active,.telop-tag.editing{cursor:grabbing;border-color:#fff;}
+  .telop-tag:active{cursor:grabbing;}
+  /* a always-visible hint that the caption itself is editable - hover alone
+     would hide this from anyone on a touch screen */
+  .telop-tag::after{
+    content:'';
+    position:absolute;top:-9px;right:-9px;
+    width:19px;height:19px;border-radius:50%;
+    /* drawn as SVG rather than an emoji: a pencil glyph depends on which
+       symbol fonts happen to be installed, and falls back to a blank box */
+    background:var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ffffff' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.6 2.4 13.6 5.4 5.4 13.6 1.9 14.1 2.4 10.6z'/%3E%3C/svg%3E") center/11px 11px no-repeat;
+    box-shadow:0 1px 4px rgba(0,0,0,.35);
+  }
+  .telop-tag:hover{border-color:#fff;}
+  .telop-tag.editing{border-color:#fff;box-shadow:0 0 0 3px rgba(18,112,95,.85);}
+
+  .telop-editor{
+    position:absolute;z-index:12;width:min(320px,88%);
+    background:var(--card);border:1px solid var(--line-strong);
+    border-radius:10px;padding:10px;
+    box-shadow:0 8px 28px rgba(0,0,0,.34);
+    pointer-events:auto;
+  }
+  .telop-editor input[type=text]{
+    width:100%;font-family:inherit;font-size:14px;padding:7px 9px;
+    border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--text);
+  }
+  .telop-editor input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
+  .te-row{display:flex;align-items:center;gap:6px;margin-top:9px;}
+  .te-label{font-size:12px;color:var(--dim);}
+  #te-close{margin-left:auto;}
   .analyzing-veil{
     position:absolute;inset:0;background:rgba(16,20,18,.55);
     display:flex;align-items:center;justify-content:center;
@@ -287,9 +316,32 @@
   .status-line{font-size:13px;color:var(--dim);margin-top:10px;min-height:18px;}
   progress{width:100%;height:10px;accent-color:var(--accent);border-radius:5px;margin-top:8px;}
   .hidden{display:none !important;}
+  /* ---------- sticky export bar ---------- */
+  .action-bar{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;
+    background:rgba(255,255,255,.97);
+    border-top:1px solid var(--line-strong);
+    box-shadow:0 -2px 16px rgba(34,31,26,.12);
+  }
+  .action-bar-inner{
+    max-width:1240px;margin:0 auto;padding:11px 28px;
+    display:flex;align-items:center;gap:14px;
+  }
+  .ab-info{flex:1;min-width:0;}
+  .ab-est{font-size:13.5px;font-weight:600;}
+  .ab-info .status-line{margin-top:1px;min-height:0;}
+  .ab-info progress{margin-top:6px;}
+  .ab-export{font-size:15px;padding:12px 24px;flex:none;}
+  body.has-action-bar{padding-bottom:98px;}
+  @media (max-width:700px){
+    .action-bar-inner{padding:9px 14px;gap:9px;}
+    .ab-export{font-size:14px;padding:11px 15px;}
+    .ab-est{font-size:12.5px;}
+    body.has-action-bar{padding-bottom:104px;}
+  }
   a.download-btn{
-    display:inline-block;margin-top:12px;padding:10px 16px;border-radius:9px;
-    text-decoration:none;font-weight:700;font-size:14px;
+    display:inline-block;padding:10px 16px;border-radius:9px;
+    text-decoration:none;font-weight:700;font-size:14px;white-space:nowrap;
     background:var(--accent);color:#fff;
   }
   a.download-btn:hover{background:var(--accent-dark);}
@@ -352,10 +404,21 @@
 
     <div class="panel hidden" id="preview-panel">
       <h2>プレビュー</h2>
-      <p class="sub">テロップは映像の上でドラッグして位置を変えられます。表示される大きさ・位置は書き出し後とほぼ同じです。</p>
+      <p class="sub">テロップは<b>映像の上でクリックすると文字を直したり消したり</b>できます。ドラッグすれば位置を変えられます。表示される大きさ・位置は書き出し後とほぼ同じです。</p>
       <div id="preview-wrapper">
         <video id="video" playsinline></video>
         <div class="telop-layer" id="telop-layer"></div>
+        <div class="telop-editor hidden" id="telop-editor">
+          <input type="text" id="te-text" maxlength="60" aria-label="テロップの文字">
+          <div class="te-row">
+            <span class="te-label">位置</span>
+            <button type="button" class="mini te-pos" data-y="12">上</button>
+            <button type="button" class="mini te-pos" data-y="50">中央</button>
+            <button type="button" class="mini te-pos" data-y="84">下</button>
+            <button type="button" class="mini danger" id="te-delete">削除</button>
+            <button type="button" class="mini" id="te-close">閉じる</button>
+          </div>
+        </div>
       </div>
       <div class="controls-row">
         <button id="btn-play" class="primary">▶ 再生</button>
@@ -476,22 +539,26 @@
 
     <div class="panel hidden" id="telop-panel">
       <h2>テロップ一覧</h2>
-      <p class="sub">文字・表示時間をここで、位置は映像の上でドラッグして直せます。</p>
+      <p class="sub">映像の上のテロップをクリックしても直せます。こちらは表示する時間をきっちり決めたいときに。</p>
       <div class="scroller" id="telop-list"></div>
       <div class="empty-note" id="telop-empty">まだテロップがありません。プレビューの「＋ 今の位置にテロップを追加」から追加できます。</div>
     </div>
 
-    <div class="panel hidden" id="export-panel">
-      <h2>4. 書き出す</h2>
-      <p class="sub" id="export-estimate"></p>
-      <button class="primary" id="btn-export" style="width:100%;">この内容で動画を書き出す</button>
-      <progress id="export-progress" class="hidden" value="0" max="100"></progress>
+  </div>
+</div>
+
+<!-- Pinned to the bottom of the window so "書き出す" is reachable without
+     hunting down a long settings column. -->
+<div class="action-bar hidden" id="export-panel">
+  <div class="action-bar-inner">
+    <div class="ab-info">
+      <div class="ab-est" id="export-estimate"></div>
       <div class="status-line" id="export-status"></div>
-      <div id="download-area"></div>
-      <div class="empty-note" style="margin-top:12px;">
-        書き出しは、できあがりの動画を最初から最後まで一度再生しながら録画する方式です。<b>できあがりの長さとほぼ同じ時間がかかり、その間はこのタブを開いたままにしてください</b>（別のタブに移ると映像が途切れます）。
-      </div>
+      <progress id="export-progress" class="hidden" value="0" max="100"></progress>
     </div>
+    <div id="download-area"></div>
+    <span class="tip tip-right" tabindex="0" data-tip="書き出しは、できあがりの動画を最初から最後まで一度再生しながら録画する方式です。できあがりの長さとほぼ同じ時間がかかり、その間はこのタブを開いたままにしてください（別のタブに移ると映像が途切れます）。">?</span>
+    <button class="primary ab-export" id="btn-export">動画を書き出す</button>
   </div>
 </div>
 
@@ -574,6 +641,7 @@ var cruiseCheckbox=$('cruise-long'), cruiseOptions=$('cruise-options');
 var cruiseSpeedGroup=$('cruise-speed-group'), cruiseLenGroup=$('cruise-len-group'), cruiseHelp=$('cruise-help');
 var btnReanalyze=$('btn-reanalyze'), btnOtherFile=$('btn-other-file');
 var telopListEl=$('telop-list'), telopEmpty=$('telop-empty');
+var telopEditor=$('telop-editor'), teText=$('te-text');
 var btnExport=$('btn-export'), exportStatus=$('export-status'), exportProgress=$('export-progress');
 var downloadArea=$('download-area'), exportEstimate=$('export-estimate');
 var stepEls=[$('step1'),$('step2'),$('step3'),$('step4')], stepHint=$('step-hint');
@@ -586,6 +654,7 @@ var segments=[];           // {type:'stop'|'straight', start, end, enabled, turn
 var walkTurns=[];          // {t, dir, deg, conf, id, removed}
 var telops=[];             // {id, text, start, end, x, y, auto, edited}
 var telopIdCounter=1, walkTurnIdCounter=1;
+var editingTelopId=null;
 var preset='mid', speedMult=4;
 // CFG holds the starting values; these are what the settings panel edits.
 var cruiseSpeed=CFG.CRUISE_SPEED, cruiseMinLen=CFG.CRUISE_MIN_LEN;
@@ -622,6 +691,13 @@ function escapeHtml(s){
   });
 }
 function raf(){ return new Promise(function(r){ requestAnimationFrame(function(){ r(); }); }); }
+
+// The export bar is fixed to the bottom of the window, so the page needs
+// matching bottom padding or the last panel hides underneath it.
+function showExportBar(v){
+  exportPanel.classList.toggle('hidden', !v);
+  document.body.classList.toggle('has-action-bar', v);
+}
 
 function setStep(n){
   for(var i=0;i<stepEls.length;i++){
@@ -706,10 +782,11 @@ function resetAll(){
   resultPanel.classList.add('hidden');
   settingsPanel.classList.add('hidden');
   telopPanel.classList.add('hidden');
-  exportPanel.classList.add('hidden');
+  showExportBar(false);
   downloadArea.innerHTML='';
   exportStatus.textContent='';
   telopLayer.innerHTML='';
+  closeTelopEditor();
 }
 
 function onMetadataLoaded(){
@@ -1311,7 +1388,7 @@ async function startAnalysis(){
   resultPanel.classList.add('hidden');
   settingsPanel.classList.add('hidden');
   telopPanel.classList.add('hidden');
-  exportPanel.classList.add('hidden');
+  showExportBar(false);
   setStep(2);
 
   // Wider spacing on long videos keeps the total work bounded, but never so
@@ -1388,7 +1465,7 @@ async function startAnalysis(){
   resultPanel.classList.remove('hidden');
   settingsPanel.classList.remove('hidden');
   telopPanel.classList.remove('hidden');
-  exportPanel.classList.remove('hidden');
+  showExportBar(true);
   btnAddTelop.disabled=false;
   setStep(3);
 
@@ -2160,7 +2237,10 @@ timelineCanvas.addEventListener('mousemove',function(e){
   tlTip.style.opacity='1';
 });
 timelineCanvas.addEventListener('mouseleave',function(){ tlTip.style.opacity='0'; });
-window.addEventListener('resize',function(){ drawTimeline(); renderTelopOverlay(); });
+window.addEventListener('resize',function(){
+  drawTimeline(); renderTelopOverlay();
+  if(editingTelopId!==null) positionTelopEditor();
+});
 
 // =========================================================================
 // 6. playback
@@ -2175,9 +2255,19 @@ video.addEventListener('timeupdate',function(){
   }
   applyLivePlaybackRules();
   renderTelopOverlay();
+  syncTelopEditor();
   drawTimeline();
   if(!exporting) refreshNowHighlights();
 });
+
+// Keep the inline editor glued to its caption, and drop it if the playhead
+// moves somewhere that caption is no longer on screen.
+function syncTelopEditor(){
+  if(editingTelopId===null) return;
+  var tl=findTelop(editingTelopId);
+  if(!tl || video.currentTime<tl.start || video.currentTime>tl.end){ closeTelopEditor(); return; }
+  positionTelopEditor();
+}
 
 var lastHighlightT=-99;
 function refreshNowHighlights(){
@@ -2258,6 +2348,7 @@ btnAddTelop.addEventListener('click',function(){
   telops.push(tl);
   telops.sort(function(a,b){ return a.start-b.start; });
   renderTelopList(); renderTelopOverlay(); drawTimeline(); renderSummary();
+  openTelopEditor(tl.id);   // land straight in the text field
 });
 
 function telopFontPx(){
@@ -2280,25 +2371,39 @@ function renderTelopOverlay(){
     tag.style.top=tl.y+'%';
     tag.style.fontSize=fs+'px';
     tag.style.borderWidth=Math.max(1,fs*0.055)+'px';
-    tag.title='ドラッグで位置を変えられます';
+    tag.title='クリックで文字を直す／ドラッグで位置を変える';
     tag.dataset.id=tl.id;
+    if(String(tl.id)===String(editingTelopId)) tag.classList.add('editing');
     tag.addEventListener('pointerdown',startDrag);
     telopLayer.appendChild(tag);
   });
 }
 
+function findTelop(id){
+  for(var i=0;i<telops.length;i++) if(String(telops[i].id)===String(id)) return telops[i];
+  return null;
+}
+
+// A press on a caption is either a drag (reposition) or a tap (edit). We only
+// commit to "drag" once the pointer has actually travelled a few pixels, so a
+// plain click opens the editor instead of nudging the caption a pixel sideways.
+var DRAG_SLOP=4;
+
 function startDrag(e){
   e.preventDefault();
-  var id=e.currentTarget.dataset.id, tl=null;
-  for(var i=0;i<telops.length;i++) if(String(telops[i].id)===String(id)) tl=telops[i];
+  var tl=findTelop(e.currentTarget.dataset.id);
   if(!tl) return;
-  dragState={ tl:tl, tag:e.currentTarget };
-  e.currentTarget.classList.add('editing');
+  dragState={ tl:tl, tag:e.currentTarget, x0:e.clientX, y0:e.clientY, moved:false };
   window.addEventListener('pointermove',onDrag);
   window.addEventListener('pointerup',endDrag);
 }
 function onDrag(e){
   if(!dragState) return;
+  if(!dragState.moved){
+    if(Math.abs(e.clientX-dragState.x0)<DRAG_SLOP && Math.abs(e.clientY-dragState.y0)<DRAG_SLOP) return;
+    dragState.moved=true;
+    dragState.tag.classList.add('editing');
+  }
   var rect=previewWrapper.getBoundingClientRect();
   var x=clamp(((e.clientX-rect.left)/rect.width)*100,3,97);
   var y=clamp(((e.clientY-rect.top)/rect.height)*100,5,95);
@@ -2307,11 +2412,94 @@ function onDrag(e){
   dragState.tag.style.top=y+'%';
 }
 function endDrag(){
-  if(dragState) dragState.tag.classList.remove('editing');
+  var ds=dragState;
   dragState=null;
   window.removeEventListener('pointermove',onDrag);
   window.removeEventListener('pointerup',endDrag);
+  if(!ds) return;
+  if(ds.moved){
+    ds.tag.classList.remove('editing');
+    if(String(ds.tl.id)===String(editingTelopId)) positionTelopEditor();
+  }else{
+    openTelopEditor(ds.tl.id);
+  }
 }
+
+// ---------- inline caption editor, anchored on the video ----------
+function openTelopEditor(id){
+  var tl=findTelop(id);
+  if(!tl) return;
+  editingTelopId=tl.id;
+  video.pause();
+  // make sure the caption we are editing is actually on screen
+  if(video.currentTime<tl.start || video.currentTime>tl.end){
+    video.currentTime=clamp(tl.start+0.1,0,Math.max(0,duration-0.05));
+  }
+  teText.value=tl.text;
+  telopEditor.classList.remove('hidden');
+  renderTelopOverlay();
+  positionTelopEditor();
+  markCurrentTelops();
+  teText.focus();
+  teText.select();
+}
+
+function closeTelopEditor(){
+  if(editingTelopId===null) return;
+  editingTelopId=null;
+  telopEditor.classList.add('hidden');
+  renderTelopOverlay();
+  markCurrentTelops();
+}
+
+function positionTelopEditor(){
+  var tl=findTelop(editingTelopId);
+  if(!tl){ closeTelopEditor(); return; }
+  var wr=previewWrapper.getBoundingClientRect();
+  var ew=telopEditor.offsetWidth, eh=telopEditor.offsetHeight;
+  var fs=telopFontPx();
+  var cx=(tl.x/100)*wr.width, cy=(tl.y/100)*wr.height;
+  // flip to whichever side of the caption has room; the preview clips overflow
+  var top = (cy>wr.height*0.55) ? (cy-fs*1.4-eh-10) : (cy+fs*1.4+10);
+  telopEditor.style.left=clamp(cx-ew/2,8,Math.max(8,wr.width-ew-8))+'px';
+  telopEditor.style.top=clamp(top,8,Math.max(8,wr.height-eh-8))+'px';
+}
+
+teText.addEventListener('input',function(){
+  var tl=findTelop(editingTelopId);
+  if(!tl) return;
+  tl.text=teText.value; tl.edited=true;
+  renderTelopOverlay();
+  positionTelopEditor();
+  renderTelopList();     // keep the list panel showing the same text
+});
+Array.prototype.forEach.call(telopEditor.querySelectorAll('.te-pos'),function(b){
+  b.addEventListener('click',function(){
+    var tl=findTelop(editingTelopId);
+    if(!tl) return;
+    tl.y=parseFloat(b.dataset.y); tl.x=50; tl.edited=true;
+    renderTelopOverlay();
+    positionTelopEditor();
+  });
+});
+$('te-delete').addEventListener('click',function(){
+  var id=editingTelopId;
+  closeTelopEditor();
+  telops=telops.filter(function(x){ return String(x.id)!==String(id); });
+  renderTelopList(); renderTelopOverlay(); drawTimeline(); renderSummary();
+});
+$('te-close').addEventListener('click',closeTelopEditor);
+
+// clicking anywhere that is not the editor or a caption dismisses it
+document.addEventListener('pointerdown',function(e){
+  if(editingTelopId===null) return;
+  if(telopEditor.contains(e.target)) return;
+  if(e.target.closest && e.target.closest('.telop-tag')) return;
+  closeTelopEditor();
+},true);
+document.addEventListener('keydown',function(e){
+  if(editingTelopId!==null && e.key==='Escape'){ e.preventDefault(); closeTelopEditor(); }
+});
 
 function renderTelopList(){
   telopEmpty.classList.toggle('hidden',telops.length>0);
@@ -2349,6 +2537,8 @@ function renderTelopList(){
       var tl=find(el.dataset.id); if(!tl) return;
       tl.text=el.value; tl.edited=true;
       renderTelopOverlay();
+      // the same caption may be open in the on-video editor
+      if(String(tl.id)===String(editingTelopId)){ teText.value=tl.text; positionTelopEditor(); }
     });
   });
   Array.prototype.forEach.call(telopListEl.querySelectorAll('.telop-start'),function(el){
@@ -2707,15 +2897,11 @@ async function exportVideo(){
   a.className='download-btn';
   a.textContent='⬇ 動画をダウンロード（.'+ext+'　'+(blob.size/1048576).toFixed(1)+'MB）';
   downloadArea.appendChild(a);
-  if(ext==='webm'){
-    var note=document.createElement('div');
-    note.className='empty-note';
-    note.style.marginTop='8px';
-    note.textContent='WebM形式で保存されます。パソコンやスマホの標準プレーヤー、YouTube、LINEなどでそのまま再生できます。開けないアプリがある場合は mp4 への変換が必要です。';
-    downloadArea.appendChild(note);
-  }
   exportProgress.value=100;
-  exportStatus.textContent='書き出しが完了しました。';
+  // the bar is a single line, so the format note goes in the status text
+  exportStatus.textContent = (ext==='webm')
+    ? '書き出しが完了しました。WebM形式です（標準プレーヤーやYouTube、LINEでそのまま再生できます）。'
+    : '書き出しが完了しました。';
 }
 
 })();
