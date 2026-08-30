@@ -1,0 +1,2724 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>道案内エディタ — 歩いて撮った動画から道案内動画を作る</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F4EF;
+    --card:#FFFFFF;
+    --card-soft:#FBFAF7;
+    --line:#E4E0D6;
+    --line-strong:#CFC9BB;
+    --text:#221F1A;
+    --dim:#6B665D;
+    --accent:#12705F;
+    --accent-dark:#0C594B;
+    --accent-soft:#E4F1ED;
+    --stop:#D2891F;
+    --stop-soft:#FBEFD9;
+    --straight:#3B8578;
+    --straight-soft:#E4F1EE;
+    --turn:#C4552E;
+    --turn-soft:#FBE7DE;
+    --danger:#B93F22;
+    --radius:12px;
+    --shadow:0 1px 2px rgba(34,31,26,.05), 0 4px 14px rgba(34,31,26,.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter','Noto Sans JP',system-ui,sans-serif;
+    font-size:15px;
+    line-height:1.65;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  /* ---------- header ---------- */
+  header{
+    background:var(--card);
+    border-bottom:1px solid var(--line);
+    padding:22px 28px 0;
+  }
+  .header-inner{max-width:1240px;margin:0 auto;}
+  header h1{
+    font-size:24px;font-weight:700;margin:0 0 2px;letter-spacing:.01em;
+  }
+  header h1 .mark{color:var(--accent);}
+  .tagline{margin:0;color:var(--dim);font-size:14px;}
+  .privacy{
+    display:inline-flex;align-items:center;gap:6px;
+    margin-top:10px;padding:4px 11px;border-radius:999px;
+    background:var(--accent-soft);color:var(--accent-dark);
+    font-size:12.5px;font-weight:600;
+  }
+  details.about{margin-top:10px;}
+  details.about summary{
+    cursor:pointer;color:var(--accent);font-size:13.5px;font-weight:600;
+    list-style:none;display:inline-flex;align-items:center;gap:5px;
+  }
+  details.about summary::-webkit-details-marker{display:none;}
+  details.about summary::before{content:'▸';transition:transform .15s;display:inline-block;}
+  details.about[open] summary::before{transform:rotate(90deg);}
+  details.about .about-body{
+    margin-top:10px;padding:14px 16px;background:var(--card-soft);
+    border:1px solid var(--line);border-radius:var(--radius);
+    font-size:13.5px;color:var(--dim);max-width:840px;
+  }
+  details.about .about-body p{margin:0 0 9px;}
+  details.about .about-body p:last-child{margin-bottom:0;}
+  details.about .about-body b{color:var(--text);}
+
+  /* ---------- steps ---------- */
+  .steps{display:flex;gap:6px;margin-top:18px;overflow-x:auto;}
+  .step{
+    flex:1 1 0;min-width:120px;text-align:center;font-size:12.5px;color:var(--dim);
+    padding:9px 6px 10px;border-bottom:3px solid var(--line);white-space:nowrap;
+  }
+  .step .num{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:19px;height:19px;border-radius:50%;background:var(--line);
+    color:var(--dim);font-size:11.5px;font-weight:700;margin-right:6px;vertical-align:-4px;
+  }
+  .step.active{color:var(--accent-dark);border-bottom-color:var(--accent);font-weight:700;}
+  .step.active .num{background:var(--accent);color:#fff;}
+  .step.done{color:var(--accent-dark);border-bottom-color:var(--accent-soft);}
+  .step.done .num{background:var(--accent-soft);color:var(--accent-dark);}
+  .step-hint{
+    max-width:1240px;margin:0 auto;padding:10px 0 14px;
+    font-size:13.5px;color:var(--dim);
+  }
+
+  /* ---------- layout ---------- */
+  .layout{
+    display:grid;grid-template-columns:minmax(0,1fr) 356px;gap:18px;
+    padding:20px 28px 56px;max-width:1240px;margin:0 auto;
+  }
+  @media (max-width:980px){ .layout{grid-template-columns:1fr;padding:16px 16px 40px;} }
+  .col{min-width:0;}
+  .panel{
+    background:var(--card);border:1px solid var(--line);
+    border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);
+  }
+  .panel + .panel{margin-top:16px;}
+  .panel h2{
+    font-size:15px;font-weight:700;margin:0 0 4px;display:flex;align-items:center;gap:8px;
+  }
+  .panel .sub{margin:0 0 14px;font-size:13px;color:var(--dim);}
+  .panel h2 + .field, .panel h2 + div:not(.sub){margin-top:14px;}
+
+  /* ---------- upload ---------- */
+  #dropzone{
+    border:2px dashed var(--line-strong);border-radius:var(--radius);
+    padding:44px 20px;text-align:center;cursor:pointer;
+    transition:border-color .15s, background .15s;background:var(--card-soft);
+  }
+  #dropzone:hover,#dropzone.drag{border-color:var(--accent);background:var(--accent-soft);}
+  #dropzone .big{font-size:17px;font-weight:700;margin-bottom:6px;}
+  #dropzone .small{color:var(--dim);font-size:13px;}
+  input[type=file]{display:none;}
+  .file-facts{
+    display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:12px;font-size:13px;color:var(--dim);
+  }
+  .file-facts b{color:var(--text);font-weight:600;}
+
+  /* ---------- buttons ---------- */
+  button{
+    font-family:inherit;font-size:14px;font-weight:600;
+    border:1px solid var(--line-strong);background:#fff;color:var(--text);
+    padding:9px 15px;border-radius:9px;cursor:pointer;
+    transition:border-color .13s, background .13s, color .13s;
+  }
+  button:hover:not(:disabled){border-color:var(--accent);color:var(--accent-dark);}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+  button.primary:hover:not(:disabled){background:var(--accent-dark);border-color:var(--accent-dark);color:#fff;}
+  button.quiet{background:transparent;border-color:transparent;color:var(--dim);padding:6px 8px;}
+  button.quiet:hover:not(:disabled){background:var(--card-soft);}
+  button.mini{font-size:12.5px;padding:5px 10px;border-radius:7px;font-weight:600;}
+  button.danger:hover:not(:disabled){border-color:var(--danger);color:var(--danger);}
+  button:disabled{opacity:.45;cursor:not-allowed;}
+  .btn-row{display:flex;flex-wrap:wrap;align-items:center;gap:9px;}
+
+  /* ---------- preview ---------- */
+  /* --ar is set from the real video dimensions so the box matches the video
+     exactly - the telop positions are percentages of this box, and they have
+     to mean the same thing here as they do in the exported file. */
+  #preview-wrapper{
+    position:relative;width:100%;background:#101010;border-radius:var(--radius);
+    overflow:hidden;margin:0 auto;
+    aspect-ratio:var(--ar,1.7778);
+    max-width:calc(62vh * var(--ar,1.7778));
+    display:flex;align-items:center;justify-content:center;
+  }
+  #preview-wrapper video{width:100%;height:100%;object-fit:contain;background:#101010;display:block;}
+  .telop-layer{position:absolute;inset:0;pointer-events:none;}
+  .telop-tag{
+    position:absolute;transform:translate(-50%,-50%);
+    background:rgba(16,20,18,.80);color:#fff;border:2px solid #F0B44A;
+    padding:.34em .74em;border-radius:.42em;font-weight:700;line-height:1.35;
+    text-align:center;pointer-events:auto;cursor:grab;user-select:none;
+    box-shadow:0 2px 10px rgba(0,0,0,.35);max-width:88%;
+  }
+  .telop-tag:active,.telop-tag.editing{cursor:grabbing;border-color:#fff;}
+  .analyzing-veil{
+    position:absolute;inset:0;background:rgba(16,20,18,.55);
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:700;font-size:14px;letter-spacing:.02em;
+  }
+  .controls-row{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:12px;}
+  .time-readout{font-size:13px;color:var(--dim);margin-left:auto;}
+
+  /* ---------- timeline ---------- */
+  #timeline-wrap{margin-top:16px;position:relative;}
+  #timeline{width:100%;height:112px;border-radius:9px;display:block;cursor:crosshair;background:var(--card-soft);border:1px solid var(--line);}
+  #tl-tip{
+    position:absolute;pointer-events:none;background:#221F1A;color:#fff;
+    font-size:12px;padding:6px 9px;border-radius:6px;white-space:nowrap;
+    transform:translate(-50%,-100%);opacity:0;transition:opacity .1s;z-index:5;
+  }
+  .timeline-legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:9px;font-size:12.5px;color:var(--dim);align-items:center;}
+  .legend-dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;}
+
+  /* ---------- fields ---------- */
+  .field{margin-bottom:18px;}
+  .field:last-child{margin-bottom:0;}
+  .field-label{display:flex;align-items:center;font-size:13.5px;font-weight:600;margin-bottom:7px;}
+  .help{margin:7px 0 0;font-size:12.5px;color:var(--dim);line-height:1.55;}
+  .segmented{display:flex;border:1px solid var(--line-strong);border-radius:9px;overflow:hidden;}
+  .segmented button{
+    flex:1;border:none;border-radius:0;background:#fff;color:var(--dim);
+    padding:8px 4px;font-size:13px;font-weight:600;
+  }
+  .segmented button + button{border-left:1px solid var(--line);}
+  .segmented button.on{background:var(--accent);color:#fff;}
+  .segmented button:hover:not(.on){background:var(--accent-soft);color:var(--accent-dark);}
+  .check{display:flex;align-items:flex-start;gap:9px;font-size:13.5px;margin-bottom:12px;cursor:pointer;}
+  .check:last-of-type{margin-bottom:0;}
+  .check input{margin:4px 0 0;width:16px;height:16px;accent-color:var(--accent);flex:none;}
+  /* settings that only apply while their parent checkbox is ticked */
+  .sub-field{margin-top:12px;padding-left:25px;}
+  .sub-field .field-label{font-size:12.5px;}
+  .sub-field .segmented button{font-size:12.5px;padding:7px 4px;}
+  .sub-field .help{margin-top:6px;}
+  #cruise-options{transition:opacity .15s;}
+  #cruise-options.disabled{opacity:.4;pointer-events:none;}
+  .check span small{display:block;color:var(--dim);font-size:12.5px;line-height:1.5;}
+  .tip{
+    display:inline-flex;align-items:center;justify-content:center;flex:none;
+    width:17px;height:17px;border-radius:50%;background:var(--line);color:var(--dim);
+    font-size:11px;font-weight:700;margin-left:6px;cursor:help;position:relative;line-height:1;
+  }
+  .tip::after{
+    content:attr(data-tip);position:absolute;bottom:150%;left:50%;transform:translateX(-50%);
+    background:#221F1A;color:#fff;padding:9px 11px;border-radius:7px;width:242px;
+    font-size:12px;line-height:1.55;font-weight:400;text-align:left;
+    opacity:0;pointer-events:none;transition:opacity .12s;z-index:30;
+  }
+  .tip:hover::after,.tip:focus::after{opacity:1;}
+  .tip.tip-right::after{left:auto;right:-6px;transform:none;}
+
+  /* ---------- result summary ---------- */
+  .summary{
+    background:var(--accent-soft);border:1px solid #C9E2DB;border-radius:10px;
+    padding:12px 14px;font-size:13.5px;color:var(--accent-dark);line-height:1.7;
+  }
+  .summary b{font-weight:700;}
+  .notice{
+    background:var(--stop-soft);border:1px solid #EFD9AC;border-radius:10px;
+    padding:11px 13px;font-size:13px;color:#8A5C10;line-height:1.6;margin-top:12px;
+  }
+  .notice.bad{background:var(--turn-soft);border-color:#EFC4B2;color:#93381A;}
+
+  /* ---------- segment list ---------- */
+  .scroller{max-height:390px;overflow-y:auto;margin:0 -4px;padding:0 4px;}
+  .seg{
+    border:1px solid var(--line);border-radius:10px;padding:10px 11px;margin-bottom:9px;
+    background:var(--card-soft);transition:border-color .13s, box-shadow .13s;
+  }
+  .seg.now{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
+  .seg-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .badge{
+    font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;
+  }
+  .badge.stop{background:var(--stop-soft);color:#8A5C10;}
+  .badge.straight{background:var(--straight-soft);color:#226156;}
+  .badge.turn{background:var(--turn-soft);color:#93381A;}
+  .badge.cruise{background:#E8EEF6;color:#2C5480;}
+  .seg-time{font-size:12.5px;color:var(--dim);}
+  .seg-dur{font-size:12.5px;color:var(--dim);margin-left:auto;}
+  .seg-note{font-size:12.5px;color:var(--text);margin-top:6px;}
+  .seg-note .conf{color:var(--dim);}
+  .seg-actions{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .seg-actions select{
+    font-family:inherit;font-size:12.5px;padding:4px 6px;border-radius:7px;
+    border:1px solid var(--line-strong);background:#fff;color:var(--text);
+  }
+  .ff-toggle{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--dim);cursor:pointer;}
+  .ff-toggle input{width:15px;height:15px;accent-color:var(--stop);margin:0;}
+
+  /* ---------- telops ---------- */
+  .telop-item{
+    border:1px solid var(--line);border-radius:10px;padding:10px 11px;margin-bottom:9px;background:var(--card-soft);
+  }
+  .telop-item.now{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
+  .telop-item input[type=text]{
+    width:100%;background:#fff;border:1px solid var(--line);border-radius:7px;
+    color:var(--text);font-size:14px;font-family:inherit;padding:6px 8px;margin-bottom:8px;
+  }
+  .telop-item input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
+  .telop-meta{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);flex-wrap:wrap;}
+  .telop-meta input[type=number]{
+    width:64px;background:#fff;border:1px solid var(--line-strong);color:var(--text);
+    border-radius:6px;padding:4px 5px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+  }
+  .telop-meta .spacer{margin-left:auto;}
+  .pos-row{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--dim);}
+  .empty-note{color:var(--dim);font-size:13px;line-height:1.65;}
+
+  .status-line{font-size:13px;color:var(--dim);margin-top:10px;min-height:18px;}
+  progress{width:100%;height:10px;accent-color:var(--accent);border-radius:5px;margin-top:8px;}
+  .hidden{display:none !important;}
+  a.download-btn{
+    display:inline-block;margin-top:12px;padding:10px 16px;border-radius:9px;
+    text-decoration:none;font-weight:700;font-size:14px;
+    background:var(--accent);color:#fff;
+  }
+  a.download-btn:hover{background:var(--accent-dark);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <h1>道案内<span class="mark">エディタ</span></h1>
+    <p class="tagline">歩きながら撮った動画を、道案内向けに自動で編集します。</p>
+    <div class="privacy">🔒 動画はこのパソコンの中だけで処理されます（どこにも送信されません）</div>
+
+    <details class="about">
+      <summary>このツールについて／うまく作るコツ</summary>
+      <div class="about-body">
+        <p><b>やってくれること</b>　動画の中の「立ち止まっている・景色が変わらない」ところを見つけて早送りにし、曲がり角には「右に曲がります」などのテロップを自動で入れます。仕上がりは画面で確認しながら直せます。</p>
+        <p><b>曲がり角の見つけ方</b>　映像の中の景色がどちらへ流れたかを何十か所も測り、「カメラ全体が同じ向きに回った量（角度）」を計算しています。おおよそ30〜40度以上まとめて向きが変われば「曲がった」と判断します。前に進んでいるだけのときは景色が左右に広がるので、曲がったとは判定しません。</p>
+        <p><b>うまく作るコツ</b>　曲がり角では一度立ち止まって、スマホを体ごとゆっくり向け直すときれいに検出されます。歩きながら急に振り向いたり、スマホだけを左右に振ると、判定を間違えやすくなります。</p>
+        <p><b>できないこと</b>　映像だけを見て判断しているので、100%正確ではありません。GPSやコンパスの情報は動画ファイルに入っていないため使えません。間違っていたら右側の一覧から直してください。</p>
+        <p><b>推奨ブラウザ</b>　Google Chrome または Microsoft Edge。Safari では書き出しがうまくいかないことがあります。</p>
+      </div>
+    </details>
+
+    <div class="steps">
+      <div class="step" id="step1"><span class="num">1</span>動画を選ぶ</div>
+      <div class="step" id="step2"><span class="num">2</span>自動で解析</div>
+      <div class="step" id="step3"><span class="num">3</span>確認して直す</div>
+      <div class="step" id="step4"><span class="num">4</span>書き出す</div>
+    </div>
+  </div>
+  <div class="step-hint" id="step-hint">まずは、歩いて撮った動画ファイルを選んでください。</div>
+</header>
+
+<div class="layout">
+  <!-- ============ left column ============ -->
+  <div class="col">
+
+    <div class="panel" id="upload-panel">
+      <h2>1. 動画を選ぶ</h2>
+      <p class="sub">スマホで撮った mp4 / mov などが使えます。3〜5分くらいまでの動画がおすすめです。</p>
+      <div id="dropzone" role="button" tabindex="0" aria-label="動画ファイルを選ぶ">
+        <div class="big">クリックして動画ファイルを選ぶ</div>
+        <div class="small">またはここにドラッグ＆ドロップ</div>
+      </div>
+      <input type="file" id="file-input" accept="video/*">
+      <div class="file-facts hidden" id="file-facts"></div>
+      <div id="load-error"></div>
+    </div>
+
+    <div class="panel hidden" id="analysis-panel">
+      <h2>2. 動きを解析しています</h2>
+      <p class="sub" id="analysis-sub">動画を早送りで一度再生しながら、映像の動きを測っています。このタブを開いたままお待ちください。</p>
+      <progress id="analysis-progress" value="0" max="100"></progress>
+      <div class="status-line" id="analysis-status"></div>
+      <div class="btn-row" style="margin-top:6px;">
+        <button id="btn-cancel-analysis" class="mini">中止する</button>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="preview-panel">
+      <h2>プレビュー</h2>
+      <p class="sub">テロップは映像の上でドラッグして位置を変えられます。表示される大きさ・位置は書き出し後とほぼ同じです。</p>
+      <div id="preview-wrapper">
+        <video id="video" playsinline></video>
+        <div class="telop-layer" id="telop-layer"></div>
+      </div>
+      <div class="controls-row">
+        <button id="btn-play" class="primary">▶ 再生</button>
+        <button id="btn-back">◀ 5秒</button>
+        <button id="btn-fwd">5秒 ▶</button>
+        <button id="btn-add-telop" disabled>＋ 今の位置にテロップを追加</button>
+        <span class="time-readout mono" id="time-readout">0:00 / 0:00</span>
+      </div>
+      <label class="check" style="margin-top:12px;">
+        <input type="checkbox" id="preview-ff" checked>
+        <span>早送りを反映して再生する<small>チェックを外すと、すべて等倍で再生して中身を確認できます。</small></span>
+      </label>
+
+      <div id="timeline-wrap">
+        <canvas id="timeline" height="112"></canvas>
+        <div id="tl-tip"></div>
+        <div class="timeline-legend">
+          <span><span class="legend-dot" style="background:#E8B45C;"></span>立ち止まっている</span>
+          <span><span class="legend-dot" style="background:#6FB1A4;"></span>歩いている</span>
+          <span><span class="legend-dot" style="background:#A9C4E4;"></span>同じ景色が続く直進</span>
+          <span><span class="legend-dot" style="background:#D9764F;"></span>曲がり角</span>
+          <span><span class="legend-dot" style="background:#221F1A;border-radius:50%;"></span>テロップ</span>
+          <span style="opacity:.75;">薄いグレーの縞＝早送りする区間</span>
+        </div>
+        <div class="timeline-legend" style="margin-top:2px;">帯の上をクリックするとその時間へ移動します。早送りの切り替えは右側の「自動判定の結果」から行えます。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ right column ============ -->
+  <div class="col">
+
+    <div class="panel hidden" id="result-panel">
+      <h2>自動判定の結果</h2>
+      <div class="summary" id="result-summary"></div>
+      <div id="result-notice"></div>
+      <div class="scroller" id="segment-list" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="panel hidden" id="settings-panel">
+      <h2>自動判定の設定</h2>
+      <p class="sub">思ったように検出されなかったときだけ触ってください。</p>
+
+      <div class="field">
+        <div class="field-label">見つけやすさ
+          <span class="tip tip-right" tabindex="0" data-tip="「多め」にすると停止や曲がり角をたくさん拾いますが、間違いも増えます。「ひかえめ」は確実なものだけを拾います。変更するとすぐ判定し直します。">?</span>
+        </div>
+        <div class="segmented" id="preset-group">
+          <button type="button" data-preset="low">ひかえめ</button>
+          <button type="button" data-preset="mid" class="on">おすすめ</button>
+          <button type="button" data-preset="high">多め</button>
+        </div>
+        <p class="help" id="preset-help">確実そうなところと、そこそこ確実なところを拾います。</p>
+      </div>
+
+      <div class="field">
+        <div class="field-label">早送りの速さ
+          <span class="tip tip-right" tabindex="0" data-tip="立ち止まっている区間などを何倍速で流すかです。速すぎると何が起きたか分かりにくくなります。4倍がおすすめです。">?</span>
+        </div>
+        <div class="segmented" id="speed-group">
+          <button type="button" data-speed="2">2倍</button>
+          <button type="button" data-speed="4" class="on">4倍</button>
+          <button type="button" data-speed="6">6倍</button>
+          <button type="button" data-speed="8">8倍</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="check" style="margin-bottom:2px;">
+          <input type="checkbox" id="cruise-long" checked>
+          <span>同じ景色が続く直進も少し早送りする<small>まっすぐ歩くだけの区間を、立ち止まっている所より控えめな速さで縮めます。曲がり角の前後と、動画の最初・最後はそのままの速さで残します。</small></span>
+        </label>
+        <div id="cruise-options">
+          <div class="sub-field">
+            <div class="field-label">その早送りの速さ
+              <span class="tip tip-right" tabindex="0" data-tip="同じ景色が続く直進をどのくらいの速さで流すかです。速くするほど短くなりますが、道が分かりにくくなります。2倍がおすすめです。">?</span>
+            </div>
+            <div class="segmented" id="cruise-speed-group">
+              <button type="button" data-cspeed="1.5">1.5倍</button>
+              <button type="button" data-cspeed="2" class="on">2倍</button>
+              <button type="button" data-cspeed="3">3倍</button>
+            </div>
+          </div>
+          <div class="sub-field">
+            <div class="field-label">どのくらい続いたら早送りするか
+              <span class="tip tip-right" tabindex="0" data-tip="まっすぐ歩くだけの区間が、この長さ以上つづいたら早送りの対象にします。短くするほどこまめに早送りされ、長くすると本当に長い直進だけが対象になります。">?</span>
+            </div>
+            <div class="segmented" id="cruise-len-group">
+              <button type="button" data-clen="10">10秒</button>
+              <button type="button" data-clen="20" class="on">20秒</button>
+              <button type="button" data-clen="40">40秒</button>
+            </div>
+            <p class="help" id="cruise-help">20秒より長くまっすぐ歩いている所を2倍速にします。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="check">
+          <input type="checkbox" id="mute-speedup" checked>
+          <span>早送り中は音を消す<small>早送りすると音が甲高くなるため、消すのがおすすめです。</small></span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="detect-walk-turn" checked>
+          <span>立ち止まらずに曲がった所も探す<small>外すと、いったん立ち止まってから曲がった所だけを探します（間違いは減りますが、見落としも増えます）。</small></span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="flip-turn">
+          <span>「右」と「左」が逆に出ている<small>チェックすると、右と左をすべて入れ替えます。</small></span>
+        </label>
+      </div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button id="btn-reanalyze" class="mini">もう一度解析する</button>
+        <button id="btn-other-file" class="mini">別の動画を選ぶ</button>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="telop-panel">
+      <h2>テロップ一覧</h2>
+      <p class="sub">文字・表示時間をここで、位置は映像の上でドラッグして直せます。</p>
+      <div class="scroller" id="telop-list"></div>
+      <div class="empty-note" id="telop-empty">まだテロップがありません。プレビューの「＋ 今の位置にテロップを追加」から追加できます。</div>
+    </div>
+
+    <div class="panel hidden" id="export-panel">
+      <h2>4. 書き出す</h2>
+      <p class="sub" id="export-estimate"></p>
+      <button class="primary" id="btn-export" style="width:100%;">この内容で動画を書き出す</button>
+      <progress id="export-progress" class="hidden" value="0" max="100"></progress>
+      <div class="status-line" id="export-status"></div>
+      <div id="download-area"></div>
+      <div class="empty-note" style="margin-top:12px;">
+        書き出しは、できあがりの動画を最初から最後まで一度再生しながら録画する方式です。<b>できあがりの長さとほぼ同じ時間がかかり、その間はこのタブを開いたままにしてください</b>（別のタブに移ると映像が途切れます）。
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* =========================================================================
+   道案内エディタ
+   すべてブラウザ内で完結。動画は一切送信されない。
+   ========================================================================= */
+
+// ---------- config ----------
+var CFG = {
+  ANALYSIS_MAX_DIM: 160,     // longest side of the analysis image (px)
+  TARGET_INTERVAL: 0.15,     // seconds between analysed samples (adaptive)
+  MAX_SAMPLES: 2200,         // cap so long videos stay responsive
+  SCAN_RATE: 6,              // playbackRate the scan starts at
+  SCAN_RATE_MIN: 2.5,        // ...eased down to this if frames arrive too far apart
+  LONG_BASELINE: 0.45,       // seconds; baseline used for the stop/move decision
+  DIAG_FOV_DEG: 75,          // assumed diagonal field of view of a phone camera
+  MIN_STOP: 0.8,             // seconds
+  MIN_MOVE: 1.2,             // seconds
+  // Absolute ceiling for "the camera is not really moving", in degrees of
+  // apparent motion per second. Measured on real footage: a handheld camera
+  // held still sits well under 1 deg/s, while ordinary walking spans roughly
+  // 1.5-5.5 deg/s, so 1.0 separates them with room to spare.
+  STOP_DEG_MAX: 1.0,
+  STOP_DEG_MIN: 0.12,
+  STOP_EXIT_MUL: 1.25,       // hysteresis width; wide bands latch (see dropLatchedStops)
+  TURN_WINDOW: 2.6,          // seconds examined after a stop
+  WALK_TURN_WINDOW: 3.6,     // seconds max for a turn taken without stopping
+  SAMPLE_NOISE_DEG: 1.0,     // per-sample yaw below this is treated as noise
+  RETRACE_DEG: 16,           // how much the running yaw total may give back before we stop
+  MIN_STRAIGHTNESS: 0.42,    // net rotation / total absolute rotation, rejects random walks
+  EDGE_GUARD: 2.0,           // seconds at the start where the phone is still being aimed
+  EDGE_GUARD_END: 1.5,       // seconds at the end where a turn caption is pointless
+
+  // "Same scenery" cruising: a long stretch of plain walking is as boring as
+  // standing still, so it gets its own gentler speed tier, well below the one
+  // used for actual stops - the viewer still has to be able to follow the route.
+  // Starting values only - both are adjustable from the settings panel.
+  CRUISE_MIN_LEN: 20,        // seconds of uninterrupted walking before it counts as monotonous
+  CRUISE_SPEED: 2.0,
+  TURN_CLEAR_BEFORE: 4.0,    // keep normal speed this long before a turn...
+  TURN_CLEAR_AFTER: 5.0,     // ...and this long after, so the turn and its caption stay readable
+  CRUISE_HEAD: 3.0,          // opening stays at normal speed (where am I starting from?)
+  CRUISE_TAIL: 5.0,          // closing stays at normal speed (covers the "arrived" caption)
+  TELOP_DUR: 2.8
+};
+
+// walkTurnDeg is calibrated against measured data rather than guessed. On the
+// real sample video the same physical corner measures anywhere from 45 to 76
+// degrees depending on which frames the browser happens to hand us, while the
+// largest non-turn candidate anywhere in five and a half minutes reaches only
+// 27. So the default sits in the gap between those two bands rather than
+// against the bottom of the real-turn range, where run-to-run variation alone
+// would decide whether a corner gets found.
+var PRESETS = {
+  low:  { stopMul:0.72, turnDeg:45, walkTurnDeg:45, help:'確実なところだけを拾います。誤検出は減りますが、見落としが増えます。' },
+  mid:  { stopMul:1.00, turnDeg:35, walkTurnDeg:36, help:'確実そうなところと、そこそこ確実なところを拾います。' },
+  high: { stopMul:1.45, turnDeg:27, walkTurnDeg:30, help:'あやしいところも拾います。見落としは減りますが、間違いも増えます。' }
+};
+
+// ---------- dom ----------
+function $(id){ return document.getElementById(id); }
+var fileInput=$('file-input'), dropzone=$('dropzone'), fileFacts=$('file-facts'), loadError=$('load-error');
+var video=$('video'), previewWrapper=$('preview-wrapper'), telopLayer=$('telop-layer');
+var uploadPanel=$('upload-panel'), analysisPanel=$('analysis-panel'), previewPanel=$('preview-panel');
+var resultPanel=$('result-panel'), settingsPanel=$('settings-panel'), telopPanel=$('telop-panel'), exportPanel=$('export-panel');
+var analysisProgress=$('analysis-progress'), analysisStatus=$('analysis-status'), analysisSub=$('analysis-sub');
+var btnCancelAnalysis=$('btn-cancel-analysis');
+var timelineCanvas=$('timeline'), tctx=timelineCanvas.getContext('2d'), tlTip=$('tl-tip');
+var timeReadout=$('time-readout'), btnPlay=$('btn-play'), btnBack=$('btn-back'), btnFwd=$('btn-fwd');
+var btnAddTelop=$('btn-add-telop'), previewFF=$('preview-ff');
+var resultSummary=$('result-summary'), resultNotice=$('result-notice'), segmentListEl=$('segment-list');
+var presetGroup=$('preset-group'), presetHelp=$('preset-help'), speedGroup=$('speed-group');
+var muteCheckbox=$('mute-speedup'), walkTurnCheckbox=$('detect-walk-turn'), flipCheckbox=$('flip-turn');
+var cruiseCheckbox=$('cruise-long'), cruiseOptions=$('cruise-options');
+var cruiseSpeedGroup=$('cruise-speed-group'), cruiseLenGroup=$('cruise-len-group'), cruiseHelp=$('cruise-help');
+var btnReanalyze=$('btn-reanalyze'), btnOtherFile=$('btn-other-file');
+var telopListEl=$('telop-list'), telopEmpty=$('telop-empty');
+var btnExport=$('btn-export'), exportStatus=$('export-status'), exportProgress=$('export-progress');
+var downloadArea=$('download-area'), exportEstimate=$('export-estimate');
+var stepEls=[$('step1'),$('step2'),$('step3'),$('step4')], stepHint=$('step-hint');
+
+// ---------- state ----------
+var duration=0, videoW=0, videoH=0, currentFileName='', currentObjectUrl=null;
+var samples=[];            // {t, dt, rate, pan, div, nValid}
+var analysisMeta=null;     // {W0,H0,interval,method}
+var segments=[];           // {type:'stop'|'straight', start, end, enabled, turnDir, turnDeg, turnConf, manual}
+var walkTurns=[];          // {t, dir, deg, conf, id, removed}
+var telops=[];             // {id, text, start, end, x, y, auto, edited}
+var telopIdCounter=1, walkTurnIdCounter=1;
+var preset='mid', speedMult=4;
+// CFG holds the starting values; these are what the settings panel edits.
+var cruiseSpeed=CFG.CRUISE_SPEED, cruiseMinLen=CFG.CRUISE_MIN_LEN;
+var analyzing=false, cancelRequested=false, exporting=false;
+var clipPreviewUntil=null;
+var dragState=null, audioGraph;
+var stopThresholdUsed=0, noStopsFound=false;
+
+// =========================================================================
+// small helpers
+// =========================================================================
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function fmtTime(t){
+  if(!isFinite(t)||t<0) t=0;
+  var m=Math.floor(t/60), s=Math.floor(t%60);
+  return m+':'+(s<10?'0':'')+s;
+}
+function fmtDur(sec){
+  if(!isFinite(sec)) return '—';
+  if(sec<60) return sec.toFixed(1)+'秒';
+  var m=Math.floor(sec/60), s=Math.round(sec-m*60);
+  if(s===60){ m++; s=0; }
+  return m+'分'+(s>0?(s+'秒'):'');
+}
+function median(arr){
+  if(!arr.length) return 0;
+  var a=arr.slice().sort(function(x,y){return x-y;});
+  var n=a.length, h=n>>1;
+  return n%2 ? a[h] : (a[h-1]+a[h])/2;
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function raf(){ return new Promise(function(r){ requestAnimationFrame(function(){ r(); }); }); }
+
+function setStep(n){
+  for(var i=0;i<stepEls.length;i++){
+    stepEls[i].classList.toggle('active', i+1===n);
+    stepEls[i].classList.toggle('done', i+1<n);
+  }
+  var hints=[
+    'まずは、歩いて撮った動画ファイルを選んでください。',
+    '動きを自動で調べています。終わるまで少しお待ちください。',
+    '自動判定の結果を確認して、違うところだけ直してください。そのままでも書き出せます。',
+    '書き出し中です。このタブを開いたままお待ちください。'
+  ];
+  stepHint.textContent = hints[n-1] || '';
+}
+setStep(1);
+
+// =========================================================================
+// 1. file loading
+// =========================================================================
+dropzone.addEventListener('click', function(){ fileInput.click(); });
+dropzone.addEventListener('keydown', function(e){
+  if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fileInput.click(); }
+});
+['dragover','dragenter'].forEach(function(ev){
+  dropzone.addEventListener(ev, function(e){ e.preventDefault(); dropzone.classList.add('drag'); });
+});
+['dragleave','drop'].forEach(function(ev){
+  dropzone.addEventListener(ev, function(e){ e.preventDefault(); dropzone.classList.remove('drag'); });
+});
+dropzone.addEventListener('drop', function(e){
+  var f=e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if(f) loadFile(f);
+});
+fileInput.addEventListener('change', function(){
+  if(fileInput.files[0]) loadFile(fileInput.files[0]);
+});
+btnOtherFile.addEventListener('click', function(){
+  if(analyzing||exporting) return;
+  fileInput.value='';
+  fileInput.click();
+});
+
+function loadFile(file){
+  if(analyzing||exporting) return;
+  if(file.type && file.type.indexOf('video')!==0 && !/\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(file.name)){
+    loadError.innerHTML='<div class="notice bad">動画ファイルではないようです。mp4 / mov などの動画を選んでください。</div>';
+    return;
+  }
+  loadError.innerHTML='';
+  currentFileName=file.name;
+  resetAll();
+
+  // Drop any listeners left over from a previous pick so they cannot stack up,
+  // and only release the old blob URL *after* the element has been pointed at
+  // the new one. Releasing it first would pull the rug out from under a load
+  // that is still in flight (which leaves the <video> stuck doing nothing at
+  // all) if this ever runs twice for the same choice.
+  video.removeEventListener('loadedmetadata', onMetadataLoaded);
+  video.removeEventListener('error', onVideoError);
+  var prevUrl=currentObjectUrl;
+  currentObjectUrl=URL.createObjectURL(file);
+  video.src=currentObjectUrl;
+  video.load();
+  if(prevUrl){ try{ URL.revokeObjectURL(prevUrl); }catch(e){} }
+
+  video.addEventListener('loadedmetadata', onMetadataLoaded, { once:true });
+  video.addEventListener('error', onVideoError, { once:true });
+  setStep(2);
+}
+
+function onVideoError(){
+  loadError.innerHTML='<div class="notice bad">この動画を読み込めませんでした。別の形式（mp4推奨）でお試しください。</div>';
+  analysisPanel.classList.add('hidden');
+  setStep(1);
+}
+
+function resetAll(){
+  samples=[]; segments=[]; walkTurns=[]; telops=[];
+  telopIdCounter=1; walkTurnIdCounter=1;
+  noStopsFound=false;
+  previewPanel.classList.add('hidden');
+  resultPanel.classList.add('hidden');
+  settingsPanel.classList.add('hidden');
+  telopPanel.classList.add('hidden');
+  exportPanel.classList.add('hidden');
+  downloadArea.innerHTML='';
+  exportStatus.textContent='';
+  telopLayer.innerHTML='';
+}
+
+function onMetadataLoaded(){
+  duration=video.duration;
+  videoW=video.videoWidth||1280;
+  videoH=video.videoHeight||720;
+
+  if(!isFinite(duration)||duration<=0){
+    loadError.innerHTML='<div class="notice bad">この動画は長さを読み取れませんでした（変換された webm などで起こることがあります）。mp4 に変換してからお試しください。</div>';
+    setStep(1);
+    return;
+  }
+
+  previewWrapper.style.setProperty('--ar', String(videoW/videoH));
+
+  fileFacts.classList.remove('hidden');
+  fileFacts.innerHTML =
+    '<span>ファイル：<b>'+escapeHtml(currentFileName)+'</b></span>'+
+    '<span>長さ：<b>'+fmtDur(duration)+'</b></span>'+
+    '<span>画面サイズ：<b>'+videoW+'×'+videoH+'</b></span>';
+
+  if(duration>900){
+    loadError.innerHTML='<div class="notice">15分を超える動画です。解析にも書き出しにもかなり時間がかかります。短く切ってからのほうが快適です。</div>';
+  }else if(duration>420){
+    loadError.innerHTML='<div class="notice">少し長めの動画です。解析に数分かかることがあります。</div>';
+  }
+
+  startAnalysis();
+}
+
+// =========================================================================
+// 2. motion analysis
+// =========================================================================
+/*
+  変更点（旧版との違い）:
+   - 画面全体の平均輝度差ではなく、多数のブロックのマッチング結果から
+     「カメラがどれだけ動いたか（px）」を直接推定する。
+   - 自動露出による明るさ変化に強い（SADの最小位置は輝度オフセットの影響を受けにくく、
+     差分スコアの側は最小二乗でゲイン・オフセットを補正する）。
+   - 停止判定は約0.45秒前のフレームとの比較で行う（手ぶれは往復するので蓄積せず、
+     歩行は蓄積するため、短い間隔で比べるより分離が良い）。
+   - 曲がり角は「パン成分A」と「前進による広がり成分B」に分解して、Aだけを積分し
+     角度（度）に換算して閾値を掛ける。サンプル間隔やフレームサイズに依存しない。
+*/
+
+function downsample2(src,w,h){
+  var w2=w>>1, h2=h>>1, out=new Float32Array(w2*h2), x,y;
+  for(y=0;y<h2;y++){
+    var r0=(y*2)*w, r1=r0+w, o=y*w2;
+    for(x=0;x<w2;x++){
+      var i=x*2;
+      out[o+x]=(src[r0+i]+src[r0+i+1]+src[r1+i]+src[r1+i+1])*0.25;
+    }
+  }
+  return out;
+}
+
+function padImage(src,w,h,m){
+  var W=w+2*m, H=h+2*m, out=new Float32Array(W*H), x,y;
+  for(y=0;y<H;y++){
+    var sy=clamp(y-m,0,h-1)*w, oo=y*W;
+    for(x=0;x<W;x++) out[oo+x]=src[sy+clamp(x-m,0,w-1)];
+  }
+  return out;
+}
+
+// Coarse SAD. Every other row is skipped: at 1/4 resolution that costs almost
+// no accuracy and roughly halves the cost of the search, which dominates.
+function sadPadded(cur,w,cx,cy,half,ref,RW,m,ox,oy){
+  var s=0, yy, xx;
+  for(yy=-half;yy<=half;yy+=2){
+    var cr=(cy+yy)*w+cx;
+    var rr=(cy+yy+oy+m)*RW+(cx+ox+m);
+    for(xx=-half;xx<=half;xx++){
+      var d=cur[cr+xx]-ref[rr+xx];
+      s += d<0 ? -d : d;
+    }
+  }
+  return s;
+}
+
+function sadClamped(cur,ref,w,h,cx,cy,half,ox,oy){
+  var s=0, yy, xx;
+  for(yy=-half;yy<=half;yy++){
+    var cy2=clamp(cy+yy,0,h-1), ry=clamp(cy2+oy,0,h-1);
+    var cr=cy2*w, rr=ry*w;
+    for(xx=-half;xx<=half;xx++){
+      var cx2=clamp(cx+xx,0,w-1), rx=clamp(cx2+ox,0,w-1);
+      var d=cur[cr+cx2]-ref[rr+rx];
+      s += d<0 ? -d : d;
+    }
+  }
+  return s;
+}
+
+// texture energy of a block at level 2 (mean absolute gradient)
+function blockTexture(g2,w,h,cx,cy,half){
+  var s=0,n=0,yy,xx;
+  for(yy=-half;yy<=half;yy++){
+    var y=clamp(cy+yy,0,h-2)*w;
+    for(xx=-half;xx<=half;xx++){
+      var x=clamp(cx+xx,0,w-2);
+      var a=g2[y+x];
+      s+=Math.abs(g2[y+x+1]-a)+Math.abs(g2[y+w+x]-a);
+      n++;
+    }
+  }
+  return n? s/(2*n) : 0;
+}
+
+// Local high-pass (image minus its box-blur). Removes the local DC level, so
+// SAD matching stops caring about auto-exposure / white-balance drift — walking
+// out of the sun into shade no longer registers as movement. Uses a sliding
+// accumulator so the cost does not depend on the blur radius.
+function highpass(src,w,h,r){
+  var tmp=new Float32Array(w*h), out=new Float32Array(w*h), x,y,i;
+  var norm=1/(2*r+1), acc;
+  for(y=0;y<h;y++){
+    var row=y*w;
+    acc=0;
+    for(i=-r;i<=r;i++) acc+=src[row+clamp(i,0,w-1)];
+    for(x=0;x<w;x++){
+      tmp[row+x]=acc*norm;
+      acc+=src[row+clamp(x+r+1,0,w-1)]-src[row+clamp(x-r,0,w-1)];
+    }
+  }
+  for(x=0;x<w;x++){
+    acc=0;
+    for(i=-r;i<=r;i++) acc+=tmp[clamp(i,0,h-1)*w+x];
+    for(y=0;y<h;y++){
+      out[y*w+x]=src[y*w+x]-acc*norm;
+      acc+=tmp[clamp(y+r+1,0,h-1)*w+x]-tmp[clamp(y-r,0,h-1)*w+x];
+    }
+  }
+  return out;
+}
+
+// Parabolic fit through the SAD minimum and its two neighbours. Without this
+// the displacement is quantised to whole pixels, which is far too coarse to
+// tell "standing still with a shaky hand" from "walking slowly".
+function subpix(sm,s0,sp){
+  var d=sm-2*s0+sp;
+  if(!(d>1e-9)) return 0;
+  return clamp(0.5*(sm-sp)/d,-0.5,0.5);
+}
+
+// COARSE_RX is the near range used on every sample. COARSE_RX_FAR is a second,
+// wider sweep that only runs when the near sweep lands on its own boundary,
+// i.e. when the camera is swinging faster than the near range can express.
+// Turning a corner at walking pace moves the picture much further per sample
+// than walking straight does, and a range that cannot reach the true match
+// leaves a flat SAD surface where the motion-cost penalty below then drags the
+// answer back toward zero — which is exactly how a sharp turn used to end up
+// reported as a handful of small, contradictory numbers.
+var COARSE_RX=10, COARSE_RX_FAR=22, COARSE_RY=4, HALF2=4, HALF1=4, HALF0=5;
+var PYR_MARGIN=COARSE_RX_FAR+2;
+var sadBuf=new Float64Array((2*COARSE_RX_FAR+1)*(2*COARSE_RY+1));
+
+// One SAD sweep over +/-rx, +/-ry at 1/4 resolution. Fills sadBuf.
+function coarseSweep(cur,ref,dims,bx2,by2,rx){
+  var RW=dims.W2+2*PYR_MARGIN;
+  var best=Infinity, sum=0, n=0, k=0, ox, oy, s;
+  for(oy=-COARSE_RY;oy<=COARSE_RY;oy++){
+    for(ox=-rx;ox<=rx;ox++){
+      s=sadPadded(cur.h2,dims.W2,bx2,by2,HALF2,ref.h2pad,RW,PYR_MARGIN,ox,oy);
+      sadBuf[k++]=s;
+      sum+=s; n++;
+      if(s<best) best=s;
+    }
+  }
+  return { best:best, mean:sum/n };
+}
+
+// Pick the winner from sadBuf, with a small penalty on large motion vectors so
+// that near-ties on repetitive texture resolve to the smaller motion, then
+// reject the block outright if a far-away offset matched nearly as well.
+function pickFromSweep(sw,rx){
+  var depth=sw.mean-sw.best;
+  var conf = sw.mean>0 ? depth/sw.mean : 0;
+  if(conf<0.10) return null;              // flat / ambiguous region
+
+  var lambda=0.014*depth;
+  var bestCost=Infinity, bx=0, by=0, k=0, ox, oy;
+  for(oy=-COARSE_RY;oy<=COARSE_RY;oy++){
+    for(ox=-rx;ox<=rx;ox++){
+      var cost=sadBuf[k++]+lambda*(Math.abs(ox)+Math.abs(oy));
+      if(cost<bestCost){ bestCost=cost; bx=ox; by=oy; }
+    }
+  }
+  var nearAsGood=sw.best+0.15*depth;
+  k=0;
+  for(oy=-COARSE_RY;oy<=COARSE_RY;oy++){
+    for(ox=-rx;ox<=rx;ox++){
+      if(sadBuf[k++]<=nearAsGood && Math.abs(ox-bx)>=3) return null;
+    }
+  }
+  return { bx:bx, by:by, conf:conf, atEdge:(Math.abs(bx)>=rx-1) };
+}
+
+// Match one block between two pyramids. Returns null when unreliable.
+// `rx` is the horizontal coarse search range; the caller widens it for samples
+// that look like they contain fast motion.
+function matchBlock(cur,ref,dims,bx2,by2,refineFull,rx){
+  var W2=dims.W2,H2=dims.H2,W1=dims.W1,H1=dims.H1,W0=dims.W0,H0=dims.H0;
+  var ox,oy,s;
+  if(!rx) rx=COARSE_RX;
+
+  var sw=coarseSweep(cur,ref,dims,bx2,by2,rx);
+  var pick=pickFromSweep(sw,rx);
+  if(pick===null) return null;
+  var bx=pick.bx, by=pick.by, conf=pick.conf;
+  var saturated = pick.atEdge;
+
+  // --- refine at 1/2 resolution ---
+  var bx1=clamp(bx2*2,0,W1-1), by1=clamp(by2*2,0,H1-1);
+  var p1x=bx*2, p1y=by*2;
+  var b1=sadClamped(cur.h1,ref.h1,W1,H1,bx1,by1,HALF1,p1x,p1y);
+  var o1x=p1x,o1y=p1y;
+  for(oy=-1;oy<=1;oy++) for(ox=-1;ox<=1;ox++){
+    if(ox===0&&oy===0) continue;
+    s=sadClamped(cur.h1,ref.h1,W1,H1,bx1,by1,HALF1,p1x+ox,p1y+oy);
+    if(s<b1){ b1=s; o1x=p1x+ox; o1y=p1y+oy; }
+  }
+
+  if(!refineFull){
+    var axm=sadClamped(cur.h1,ref.h1,W1,H1,bx1,by1,HALF1,o1x-1,o1y);
+    var axp=sadClamped(cur.h1,ref.h1,W1,H1,bx1,by1,HALF1,o1x+1,o1y);
+    var aym=sadClamped(cur.h1,ref.h1,W1,H1,bx1,by1,HALF1,o1x,o1y-1);
+    var ayp=sadClamped(cur.h1,ref.h1,W1,H1,bx1,by1,HALF1,o1x,o1y+1);
+    return {
+      dx:-(o1x+subpix(axm,b1,axp))*2,
+      dy:-(o1y+subpix(aym,b1,ayp))*2,
+      conf:conf, saturated:saturated
+    };
+  }
+
+  // --- refine at full analysis resolution ---
+  var bx0=clamp(bx2*4,0,W0-1), by0=clamp(by2*4,0,H0-1);
+  var p0x=o1x*2, p0y=o1y*2;
+  var b0=sadClamped(cur.h0,ref.h0,W0,H0,bx0,by0,HALF0,p0x,p0y);
+  var o0x=p0x,o0y=p0y;
+  for(oy=-1;oy<=1;oy++) for(ox=-1;ox<=1;ox++){
+    if(ox===0&&oy===0) continue;
+    s=sadClamped(cur.h0,ref.h0,W0,H0,bx0,by0,HALF0,p0x+ox,p0y+oy);
+    if(s<b0){ b0=s; o0x=p0x+ox; o0y=p0y+oy; }
+  }
+  var cxm=sadClamped(cur.h0,ref.h0,W0,H0,bx0,by0,HALF0,o0x-1,o0y);
+  var cxp=sadClamped(cur.h0,ref.h0,W0,H0,bx0,by0,HALF0,o0x+1,o0y);
+  var cym=sadClamped(cur.h0,ref.h0,W0,H0,bx0,by0,HALF0,o0x,o0y-1);
+  var cyp=sadClamped(cur.h0,ref.h0,W0,H0,bx0,by0,HALF0,o0x,o0y+1);
+  return {
+    dx:-(o0x+subpix(cxm,b0,cxp)),
+    dy:-(o0y+subpix(cym,b0,cyp)),
+    conf:conf, saturated:saturated
+  };
+}
+
+// robust global difference score between two level-1 images,
+// after removing a global gain/offset (auto-exposure / white balance drift)
+function diffScore(cur1,ref1,n){
+  var i, sc=0, sp=0, spp=0, scp=0;
+  for(i=0;i<n;i+=2){
+    var c=cur1[i], p=ref1[i];
+    sc+=c; sp+=p; spp+=p*p; scp+=c*p;
+  }
+  var m=Math.ceil(n/2);
+  var denom=m*spp-sp*sp;
+  var a = Math.abs(denom)>1e-6 ? (m*scp-sc*sp)/denom : 1;
+  a=clamp(a,0.55,1.8);
+  var b=(sc-a*sp)/m;
+
+  var hist=new Int32Array(256);
+  for(i=0;i<n;i++){
+    var d=cur1[i]-(a*ref1[i]+b);
+    if(d<0) d=-d;
+    var bi=d|0; if(bi>255) bi=255;
+    hist[bi]++;
+  }
+  var target=n*0.5, acc=0, p50=255;
+  for(i=0;i<256;i++){ acc+=hist[i]; if(acc>=target){ p50=i; break; } }
+  return p50;
+}
+
+function meanGradient(g1,w,h){
+  var s=0,n=0,x,y;
+  for(y=0;y<h-1;y+=2){
+    var r=y*w;
+    for(x=0;x<w-1;x+=2){
+      var a=g1[r+x];
+      s+=Math.abs(g1[r+x+1]-a)+Math.abs(g1[r+w+x]-a); n+=2;
+    }
+  }
+  return n? s/n : 0;
+}
+
+function percentileOf(sorted,p){
+  if(!sorted.length) return 0;
+  return sorted[clamp(Math.floor(p*(sorted.length-1)),0,sorted.length-1)];
+}
+
+// Otsu, run on log(rate). The motion rates span two orders of magnitude
+// (standing still ~0.007, walking ~0.1, mid-turn ~0.5) so a linear histogram
+// gets swamped by the turns and the split lands far too high.
+function otsuThreshold(vals){
+  if(vals.length<12) return null;
+  var lv=[], i;
+  for(i=0;i<vals.length;i++) lv.push(Math.log(Math.max(1e-4,vals[i])));
+  var sorted=lv.slice().sort(function(a,b){return a-b;});
+  var lo=percentileOf(sorted,0.02), hi=percentileOf(sorted,0.98);
+  if(!(hi>lo+1e-6)) return null;
+  var B=128, hist=new Float64Array(B);
+  for(i=0;i<lv.length;i++){
+    var bi=Math.floor(((lv[i]-lo)/(hi-lo))*(B-1));
+    hist[clamp(bi,0,B-1)]++;
+  }
+  var total=lv.length, sumAll=0;
+  for(i=0;i<B;i++) sumAll+=i*hist[i];
+  var wB=0,sumB=0,best=-1,thr=0;
+  for(i=0;i<B;i++){
+    wB+=hist[i]; if(wB===0) continue;
+    var wF=total-wB; if(wF===0) break;
+    sumB+=i*hist[i];
+    var mB=sumB/wB, mF=(sumAll-sumB)/wF;
+    var v=wB*wF*(mB-mF)*(mB-mF);
+    if(v>best){ best=v; thr=i; }
+  }
+  return Math.exp(lo + ((thr+0.5)/(B-1))*(hi-lo));
+}
+
+// ---- the per-frame processor ----
+function createAnalyzer(){
+  var scale=CFG.ANALYSIS_MAX_DIM/Math.max(videoW,videoH);
+  var W0=Math.max(48,Math.round(videoW*scale));
+  var H0=Math.max(48,Math.round(videoH*scale));
+  W0-=W0%4; H0-=H0%4;
+  var W1=W0>>1, H1=H0>>1, W2=W0>>2, H2=H0>>2;
+  var dims={W0:W0,H0:H0,W1:W1,H1:H1,W2:W2,H2:H2};
+
+  var fovDeg=horizontalFovDeg(videoW,videoH);
+  var cv=document.createElement('canvas'); cv.width=W0; cv.height=H0;
+  var cx2d=cv.getContext('2d',{willReadFrequently:true});
+
+  // block grid (level-2 coordinates), clamped so the block stays inside
+  var fx=[0.14,0.32,0.50,0.68,0.86], fy=[0.26,0.45,0.64];
+  var blocks=[], i,j;
+  for(j=0;j<fy.length;j++) for(i=0;i<fx.length;i++){
+    var bx=clamp(Math.round(fx[i]*W2),HALF2,W2-1-HALF2);
+    var by=clamp(Math.round(fy[j]*H2),HALF2,H2-1-HALF2);
+    blocks.push({ x2:bx, y2:by, ux:(bx*4+2-W0/2)/W0 });
+  }
+
+  var history=[];   // recent pyramids, newest last
+  var gray=new Float32Array(W0*H0);
+
+  function makePyramid(t){
+    cx2d.drawImage(video,0,0,W0,H0);
+    var img;
+    try{ img=cx2d.getImageData(0,0,W0,H0).data; }catch(e){ return null; }
+    var n=W0*H0, i;
+    for(i=0;i<n;i++){
+      var o=i<<2;
+      gray[i]=0.299*img[o]+0.587*img[o+1]+0.114*img[o+2];
+    }
+    var g1=downsample2(gray,W0,H0);
+    var g2=downsample2(g1,W1,H1);
+    var h2=highpass(g2,W2,H2,HALF2);
+    // g1 / g2 stay as plain luma (used for the texture gate and the fallback
+    // difference score); h0 / h1 / h2 are what the block matcher sees.
+    return {
+      t:t,
+      g1:g1, g2:g2,
+      h0:highpass(gray,W0,H0,HALF0),
+      h1:highpass(g1,W1,H1,HALF1),
+      h2:h2,
+      h2pad:padImage(h2,W2,H2,PYR_MARGIN)
+    };
+  }
+
+  function process(t){
+    var cur=makePyramid(t);
+    if(!cur) return null;
+
+    var prev=history.length?history[history.length-1]:null;
+    var longRef=null, k;
+    for(k=0;k<history.length;k++){
+      if(t-history[k].t>=CFG.LONG_BASELINE) longRef=history[k];
+    }
+    if(!longRef && history.length) longRef=history[0];
+
+    var out={ t:t, dt:prev?(t-prev.t):0, rate:NaN, pan:0, div:0, nValid:0, sat:0 };
+
+    // texture gate, computed once per block per sample
+    var textured=[];
+    for(k=0;k<blocks.length;k++){
+      textured.push(blockTexture(cur.g2,dims.W2,dims.H2,blocks[k].x2,blocks[k].y2,HALF2)>=2.2);
+    }
+
+    // --- short baseline: pan / divergence decomposition ---
+    function measurePan(rx){
+      var dxs=[], us=[], lefts=[], rights=[], lus=[], rus=[], sat=0, b, j;
+      for(j=0;j<blocks.length;j++){
+        b=blocks[j];
+        if(!textured[j]) continue;
+        var m=matchBlock(cur,prev,dims,b.x2,b.y2,true,rx);
+        if(!m) continue;
+        if(m.saturated) sat++;
+        // reject blocks whose motion is dominated by vertical wobble (footsteps)
+        if(Math.abs(m.dy)>Math.abs(m.dx)*1.6+2) continue;
+        dxs.push(m.dx); us.push(b.ux);
+        if(b.ux<-0.10){ lefts.push(m.dx); lus.push(b.ux); }
+        else if(b.ux>0.10){ rights.push(m.dx); rus.push(b.ux); }
+      }
+      return { dxs:dxs, us:us, lefts:lefts, rights:rights, lus:lus, rus:rus, sat:sat };
+    }
+
+    if(prev && t-prev.t>1e-4){
+      var nTextured=0;
+      for(k=0;k<blocks.length;k++) if(textured[k]) nTextured++;
+
+      var r=measurePan(COARSE_RX);
+      // Two signs that the camera swung further than the near range can
+      // express: the matches are pinned to the edge of the search window, or
+      // most blocks came back unusable because the true match simply is not
+      // inside it. Both happen exactly when rounding a corner, so redo the
+      // sample with the wide range. Walking straight never triggers this, so
+      // the extra cost is only paid on the handful of samples that need it.
+      var edgePx=COARSE_RX*4*0.7;
+      var looksFast = r.sat>0 ||
+                      (nTextured>=6 && r.dxs.length<nTextured*0.5) ||
+                      (r.dxs.length>0 && Math.abs(median(r.dxs))>=edgePx);
+      if(looksFast){
+        var wide=measurePan(COARSE_RX_FAR);
+        if(wide.dxs.length>=r.dxs.length) r=wide;
+        out.wide=1;
+      }
+      out.sat=r.sat;
+      out.nValid=r.dxs.length;
+      if(r.dxs.length>=4){
+        var B=0;
+        if(r.lefts.length>=2 && r.rights.length>=2){
+          var du=median(r.rus)-median(r.lus);
+          // Only trust the expansion term when the two groups are actually far
+          // apart across the frame. When blocks drop out mid-turn the two
+          // medians can sit almost on top of each other, and dividing by that
+          // tiny baseline produced absurd values (seen: 108 px per sample)
+          // which then wrecked the pan estimate they get subtracted from.
+          if(Math.abs(du)>=0.15) B=(median(r.rights)-median(r.lefts))/du;
+        }
+        // Belt and braces: keep the expansion term in the same league as the
+        // motion actually observed. Loose enough not to bite during ordinary
+        // forward walking, tight enough to reject a blow-up.
+        var absDx=[];
+        for(k=0;k<r.dxs.length;k++) absDx.push(Math.abs(r.dxs[k]));
+        var bCap=4*median(absDx)+12;
+        B=clamp(B,-bCap,bCap);
+        var resid=[];
+        for(k=0;k<r.dxs.length;k++) resid.push(r.dxs[k]-B*r.us[k]);
+        out.pan=median(resid);       // yaw component, in analysis px
+        out.div=B;                   // expansion component (forward motion)
+      }
+    }
+
+    // --- long baseline: how much has the camera actually moved? ---
+    var rate=NaN;
+    if(longRef && t-longRef.t>1e-4){
+      var dtL=t-longRef.t;
+      // only a magnitude is needed here, so half the grid is plenty
+      var mags=[], bl;
+      for(k=0;k<blocks.length;k+=2){
+        bl=blocks[k];
+        if(!textured[k]) continue;
+        var mm=matchBlock(cur,longRef,dims,bl.x2,bl.y2,false,COARSE_RX);
+        if(!mm) continue;
+        mags.push(Math.sqrt(mm.dx*mm.dx+mm.dy*mm.dy));
+      }
+      var px;
+      if(mags.length>=3){
+        // block matching runs on high-passed images, so a sudden auto-exposure
+        // change (walking into shade) does not register as movement
+        px=median(mags);
+      }else{
+        // fallback for very dark / very flat footage where matching gives up:
+        // gain-normalised frame difference, expressed in px
+        var g=meanGradient(cur.g1,dims.W1,dims.H1);
+        px=diffScore(cur.g1,longRef.g1,dims.W1*dims.H1)/Math.max(2.0,g)*2;
+      }
+      // Degrees of apparent motion per second, not frame-widths per second.
+      // A narrow portrait frame turns the same real motion into a much larger
+      // fraction of the frame width, so a frame-width threshold silently means
+      // something ~1.6x stricter on landscape footage than on portrait.
+      rate = px/dims.W0*fovDeg/dtL;
+    }
+    out.rate=rate;
+
+    history.push(cur);
+    if(history.length>6) history.shift();
+    return out;
+  }
+
+  return { process:process, dims:dims };
+}
+
+// ---- frame stepping: playback scan (fast, dense) with a seek-based fallback ----
+function seekTo(t){
+  return new Promise(function(resolve){
+    var target=clamp(t,0,Math.max(0,duration-0.06));
+    if(Math.abs(video.currentTime-target)<1e-3 && video.readyState>=2){ resolve(); return; }
+    var done=false;
+    function fin(){ if(done) return; done=true; clearTimeout(to); video.removeEventListener('seeked',fin); resolve(); }
+    var to=setTimeout(fin,2500);
+    video.addEventListener('seeked',fin);
+    try{ video.currentTime=target; }catch(e){ fin(); }
+  });
+}
+
+function playbackScan(interval,onSample,onProgress){
+  return new Promise(function(resolve,reject){
+    var last=-1, finished=false, watchdog=null;
+    function finish(){
+      if(finished) return;
+      finished=true;
+      if(watchdog) clearInterval(watchdog);
+      video.removeEventListener('ended',finish);
+      video.pause();
+      video.playbackRate=1;
+      resolve();
+    }
+    // How far apart the samples actually land is decided by how fast the
+    // browser can decode, not by `interval`: on a big portrait phone video at
+    // 6x, only about one frame per 0.25s of video ever gets presented, and it
+    // stretches further on busy frames. Since a corner sweeps the picture a
+    // long way per sample, that spacing is what pushes the motion past what
+    // the matcher can follow. So watch the real spacing and ease the playback
+    // rate down until the samples land close enough together.
+    var gapHist=[], curRate=CFG.SCAN_RATE, lastRateChange=-1;
+    function noteGap(g){
+      gapHist.push(g);
+      if(gapHist.length>10) gapHist.shift();
+      if(gapHist.length<10) return;
+      if(curRate<=CFG.SCAN_RATE_MIN) return;
+      if(last-lastRateChange < 6) return;      // let it settle between changes
+      if(median(gapHist) > interval*1.35){
+        curRate=Math.max(CFG.SCAN_RATE_MIN, curRate*0.7);
+        video.playbackRate=curRate;
+        lastRateChange=last;
+        gapHist.length=0;
+      }
+    }
+    function cb(now,meta){
+      if(finished) return;
+      if(cancelRequested){ finish(); return; }
+      var t=(meta && typeof meta.mediaTime==='number') ? meta.mediaTime : video.currentTime;
+      if(last<0 || t-last>=interval-0.004){
+        if(last>=0) noteGap(t-last);
+        last=t;
+        try{ onSample(t); }catch(e){}
+        onProgress(t);
+      }
+      try{ video.requestVideoFrameCallback(cb); }catch(e){ finish(); }
+    }
+    video.addEventListener('ended',finish);
+    seekTo(0).then(function(){
+      video.muted=true;
+      video.playbackRate=curRate;
+      var p=video.play();
+      if(p&&p.catch) p.catch(function(err){ reject(err); });
+      try{ video.requestVideoFrameCallback(cb); }catch(e){ reject(e); return; }
+      // safety net in case 'ended' never fires
+      var stallTicks=0, lastSeen=-1;
+      watchdog=setInterval(function(){
+        if(finished) return;
+        if(cancelRequested){ finish(); return; }
+        if(video.ended || video.currentTime>=duration-0.12){ finish(); return; }
+        if(Math.abs(video.currentTime-lastSeen)<0.01){ stallTicks++; } else { stallTicks=0; }
+        lastSeen=video.currentTime;
+        if(stallTicks>12) finish();     // ~6 seconds with no progress
+      },500);
+    });
+  });
+}
+
+async function seekScan(interval,onSample,onProgress){
+  var t=0, i=0;
+  while(t<duration-0.05){
+    if(cancelRequested) return;
+    await seekTo(t);
+    try{ onSample(video.currentTime); }catch(e){}
+    onProgress(t);
+    t+=interval;
+    if((++i%6)===0) await raf();
+  }
+}
+
+async function startAnalysis(){
+  if(analyzing) return;
+  analyzing=true; cancelRequested=false;
+  analysisPanel.classList.remove('hidden');
+  previewPanel.classList.add('hidden');
+  resultPanel.classList.add('hidden');
+  settingsPanel.classList.add('hidden');
+  telopPanel.classList.add('hidden');
+  exportPanel.classList.add('hidden');
+  setStep(2);
+
+  // Wider spacing on long videos keeps the total work bounded, but never so
+  // wide that a brisk turn moves further than the matcher can search.
+  var interval=clamp(duration/CFG.MAX_SAMPLES, CFG.TARGET_INTERVAL, 0.30);
+  var analyzer=createAnalyzer();
+  analysisMeta={
+    W0:analyzer.dims.W0, H0:analyzer.dims.H0, interval:interval,
+    fovDeg:horizontalFovDeg(videoW,videoH)
+  };
+  samples=[];
+
+  var canPlaybackScan = typeof video.requestVideoFrameCallback==='function';
+  var estimate = canPlaybackScan ? duration/CFG.SCAN_RATE : duration*0.08;
+  analysisSub.textContent = canPlaybackScan
+    ? '動画を早送りで一度再生しながら、映像の動きを測っています（目安 約'+fmtDur(Math.max(3,estimate))+'）。このタブを開いたままお待ちください。'
+    : '映像を少しずつ読み進めながら、動きを測っています。このタブを開いたままお待ちください。';
+  analysisProgress.value=0;
+  analysisStatus.textContent='0%';
+
+  var t0=performance.now(), lastPaint=0;
+  function onSample(t){
+    var s=analyzer.process(t);
+    if(s) samples.push(s);
+  }
+  function onProgress(t){
+    var now=performance.now();
+    if(now-lastPaint<120) return;
+    lastPaint=now;
+    var pct=clamp((t/duration)*100,0,100);
+    analysisProgress.value=pct;
+    var elapsed=(now-t0)/1000;
+    var remain = pct>3 ? elapsed*(100-pct)/pct : NaN;
+    analysisStatus.textContent=Math.round(pct)+'%'+(isFinite(remain)?('　残り 約'+fmtDur(Math.max(1,remain))):'');
+  }
+
+  var savedMuted=video.muted;
+  try{
+    if(canPlaybackScan){
+      try{
+        await playbackScan(interval,onSample,onProgress);
+      }catch(e){
+        video.pause(); video.playbackRate=1;
+        await seekScan(interval,onSample,onProgress);
+      }
+    }else{
+      await seekScan(interval,onSample,onProgress);
+    }
+  }catch(e){
+    analysisStatus.textContent='解析中に問題が起きました。もう一度お試しください。';
+  }
+
+  video.pause();
+  video.playbackRate=1;
+  video.muted=savedMuted;
+  await seekTo(0);
+  analyzing=false;
+
+  if(cancelRequested){
+    analysisPanel.classList.add('hidden');
+    setStep(1);
+    return;
+  }
+
+  if(samples.length<6){
+    analysisPanel.classList.add('hidden');
+    loadError.innerHTML='<div class="notice bad">映像を読み取れませんでした。別の動画か、Chrome / Edge でお試しください。</div>';
+    setStep(1);
+    return;
+  }
+
+  analysisPanel.classList.add('hidden');
+  previewPanel.classList.remove('hidden');
+  resultPanel.classList.remove('hidden');
+  settingsPanel.classList.remove('hidden');
+  telopPanel.classList.remove('hidden');
+  exportPanel.classList.remove('hidden');
+  btnAddTelop.disabled=false;
+  setStep(3);
+
+  classify(true);
+  renderAll();
+  // Development hook. There is no build step or test runner for this file, so
+  // the only way to check detection against a real walking video is to drive a
+  // real browser and read the analysis out. Harmless to leave in place.
+  // Getters, not snapshots: re-classifying (changing a preset, toggling an
+  // option) replaces these arrays wholesale, and a plain copy would silently
+  // keep reporting the state from first analysis.
+  window.__debug = {
+    get samples(){ return samples; },
+    get segments(){ return segments; },
+    get walkTurns(){ return walkTurns; },
+    get telops(){ return telops; },
+    get analysisMeta(){ return analysisMeta; },
+    get stopThreshold(){ return stopThresholdUsed; },
+    get noStopsFound(){ return noStopsFound; },
+    yawOf:yawOf, integrateYaw:integrateYaw
+  };
+}
+
+btnCancelAnalysis.addEventListener('click', function(){
+  cancelRequested=true;
+  analysisStatus.textContent='中止しています…';
+});
+
+// =========================================================================
+// 3. classification: stop / straight segments, then turns
+// =========================================================================
+function classify(regenerateTelops){
+  if(!samples.length) return;
+
+  // ---- fill in samples that had no baseline yet ----
+  var i, firstFinite=NaN;
+  for(i=0;i<samples.length;i++){ if(isFinite(samples[i].rate)){ firstFinite=samples[i].rate; break; } }
+  if(!isFinite(firstFinite)) firstFinite=0;
+  for(i=0;i<samples.length;i++) if(!isFinite(samples[i].rate)) samples[i].rate=firstFinite;
+
+  // median-of-3 on the motion rate: kills one-off spikes (a bird, a car door,
+  // a single badly decoded frame) without blurring real transitions
+  var rawRates=samples.map(function(s){ return s.rate; });
+  for(i=0;i<samples.length;i++){
+    samples[i].rateS = (i===0||i===samples.length-1)
+      ? rawRates[i]
+      : median([rawRates[i-1],rawRates[i],rawRates[i+1]]);
+  }
+
+  // ---- threshold ----
+  // "Stopped" has to be an absolute statement about the camera barely moving,
+  // not a share of this video's samples. The previous rule capped the
+  // threshold at half the video's own typical motion, which sounds adaptive
+  // but guarantees that some slice of every video falls below it - the exact
+  // flaw the original percentile slider had. On the real sample video, where
+  // the walker never actually stopped, it sliced straight through the left
+  // flank of a single unimodal walking hump and produced 33 phantom stops.
+  //
+  // So: a fixed ceiling in degrees/second, and Otsu may only pull it *down*
+  // (a video whose stops are unusually still), never push it up.
+  var P=PRESETS[preset];
+  var rates=samples.map(function(s){ return s.rateS; });
+  var otsu=otsuThreshold(rates);
+  var ceiling=CFG.STOP_DEG_MAX*P.stopMul;
+  var T = (otsu===null) ? ceiling : clamp(Math.min(otsu,ceiling), CFG.STOP_DEG_MIN, ceiling);
+  stopThresholdUsed=T;
+
+  var below=0;
+  for(i=0;i<rates.length;i++) if(rates[i]<T) below++;
+  noStopsFound = (below/rates.length) < 0.02;
+
+  // ---- hysteresis + majority filter ----
+  var flags=new Array(samples.length), inStop=false;
+  var Tex=T*CFG.STOP_EXIT_MUL;
+  for(i=0;i<samples.length;i++){
+    var r=samples[i].rateS;
+    if(inStop){ if(r>Tex) inStop=false; }
+    else { if(r<T) inStop=true; }
+    flags[i]=inStop;
+  }
+  var sm=flags.slice();
+  for(i=1;i<flags.length-1;i++){
+    var c=(flags[i-1]?1:0)+(flags[i]?1:0)+(flags[i+1]?1:0);
+    sm[i]=c>=2;
+  }
+  flags=sm;
+
+  // ---- runs ----
+  var runs=[], cur=null;
+  for(i=0;i<samples.length;i++){
+    var type=flags[i]?'stop':'straight';
+    var tStart=samples[i].t;
+    if(!cur||cur.type!==type){
+      if(cur) cur.end=tStart;
+      cur={type:type,start:tStart,end:duration};
+      runs.push(cur);
+    }
+  }
+  if(runs.length) runs[runs.length-1].end=duration;
+  if(runs.length) runs[0].start=0;
+
+  runs=mergeShortRuns(runs);
+  runs=dropLatchedStops(runs,T);
+  runs=mergeShortRuns(runs);
+
+  var prevSegs=segments;
+  segments=runs.map(function(r){
+    return {
+      type:r.type, start:r.start, end:r.end, cruise:false,
+      enabled:false, userToggled:false,
+      turnDir:null, turnDeg:0, turnConf:0, turnEndT:0, manualTurn:false
+    };
+  });
+
+  detectTurns();
+
+  // Restore manual turn overrides before splitting, because where the turns
+  // are decides where we are allowed to cruise.
+  segments.forEach(function(seg){
+    for(var k=0;k<prevSegs.length;k++){
+      var p=prevSegs[k];
+      if(p.manualTurn && p.type===seg.type && Math.abs(p.start-seg.start)<1.2){
+        seg.turnDir=p.turnDir; seg.manualTurn=true;
+      }
+    }
+  });
+
+  if(cruiseCheckbox.checked) segments=splitOutCruiseStretches(segments);
+
+  // ---- defaults, then carry over anything the user set by hand ----
+  segments.forEach(function(seg){
+    var prev=null;
+    for(var k=0;k<prevSegs.length;k++){
+      var p=prevSegs[k];
+      if(p.userToggled && p.type===seg.type && Math.abs(p.start-seg.start)<1.2){ prev=p; break; }
+    }
+    if(prev){
+      seg.enabled=prev.enabled;
+      seg.userToggled=true;
+    }else{
+      // stops are fast-forwarded unless they are the pause before a turn;
+      // long monotonous stretches get the gentler cruise speed
+      seg.enabled = seg.type==='stop' ? !seg.turnDir : !!seg.cruise;
+    }
+  });
+
+  if(regenerateTelops!==false) regenerateAutoTelops();
+}
+
+// Stretches of video that must stay at normal speed because a turn happens
+// there. A walking turn is not attached to any stop segment, so without this
+// the cruise speed-up would run straight through the one moment the viewer
+// most needs to see, caption and all.
+function turnProtectedSpans(){
+  var spans=[];
+  // The opening establishes where the walk starts from, and the closing
+  // carries the "arrived" caption. Both are the point of the video, so never
+  // let the cruise speed-up run over them.
+  spans.push([-1, CFG.CRUISE_HEAD]);
+  spans.push([duration-CFG.CRUISE_TAIL, duration+1]);
+  segments.forEach(function(seg){
+    if(seg.type==='stop' && seg.turnDir){
+      spans.push([seg.end-CFG.TURN_CLEAR_BEFORE, Math.max(seg.end,seg.turnEndT)+CFG.TURN_CLEAR_AFTER]);
+    }
+  });
+  walkTurns.forEach(function(w){
+    spans.push([w.t-CFG.TURN_CLEAR_BEFORE, Math.max(w.t,w.endT||w.t)+CFG.TURN_CLEAR_AFTER]);
+  });
+  return spans;
+}
+
+// Split each long walking segment into (normal | cruise | normal | ...) pieces,
+// so that every cruise piece is its own segment the user can switch off
+// individually, exactly like a stop segment.
+function splitOutCruiseStretches(segs){
+  var spans=turnProtectedSpans();
+  var out=[];
+  function piece(src,a,b,isCruise){
+    return {
+      type:src.type, start:a, end:b, cruise:isCruise,
+      enabled:false, userToggled:false,
+      turnDir:null, turnDeg:0, turnConf:0, turnEndT:0, manualTurn:false
+    };
+  }
+  segs.forEach(function(seg){
+    if(seg.type!=='straight' || seg.end-seg.start<cruiseMinLen){ out.push(seg); return; }
+
+    // subtract the protected spans from this segment
+    var free=[[seg.start,seg.end]];
+    spans.forEach(function(p){
+      var next=[];
+      free.forEach(function(f){
+        if(p[1]<=f[0] || p[0]>=f[1]){ next.push(f); return; }
+        if(p[0]>f[0]) next.push([f[0],p[0]]);
+        if(p[1]<f[1]) next.push([p[1],f[1]]);
+      });
+      free=next;
+    });
+
+    var longEnough=free.filter(function(f){ return f[1]-f[0]>=cruiseMinLen; });
+    if(!longEnough.length){ out.push(seg); return; }
+
+    var pos=seg.start;
+    longEnough.forEach(function(f){
+      if(f[0]>pos+0.05) out.push(piece(seg,pos,f[0],false));
+      out.push(piece(seg,f[0],f[1],true));
+      pos=f[1];
+    });
+    if(seg.end>pos+0.05) out.push(piece(seg,pos,seg.end,false));
+  });
+  return out;
+}
+
+// The hysteresis that stops a segment flickering at its edges can also latch:
+// one dip below the threshold enters "stopped", and leaving again requires
+// clearing the higher exit threshold, which ordinary walking may not do for
+// several seconds. The result looks like a stop but isn't one. A real stop is
+// quiet for most of its length, so require the run's *median* to be below the
+// threshold - not merely the one sample that happened to trip it.
+function dropLatchedStops(runs,T){
+  var changed=false;
+  runs.forEach(function(r){
+    if(r.type!=='stop') return;
+    var v=[];
+    for(var i=0;i<samples.length;i++){
+      if(samples[i].t>=r.start && samples[i].t<r.end && isFinite(samples[i].rateS)) v.push(samples[i].rateS);
+    }
+    if(v.length && median(v)>T){ r.type='straight'; changed=true; }
+  });
+  if(!changed) return runs;
+  var out=[];
+  runs.forEach(function(r){
+    if(out.length && out[out.length-1].type===r.type) out[out.length-1].end=r.end;
+    else out.push({ type:r.type, start:r.start, end:r.end });
+  });
+  return out;
+}
+
+function mergeShortRuns(runs){
+  var guard=0;
+  while(runs.length>1 && guard++<400){
+    var worstI=-1, worstLen=Infinity;
+    for(var i=0;i<runs.length;i++){
+      var len=runs[i].end-runs[i].start;
+      var min=(runs[i].type==='stop')?CFG.MIN_STOP:CFG.MIN_MOVE;
+      if(len<min && len<worstLen){ worstLen=len; worstI=i; }
+    }
+    if(worstI<0) break;
+    runs[worstI].type = runs[worstI].type==='stop' ? 'straight' : 'stop';
+    var out=[];
+    for(var j=0;j<runs.length;j++){
+      if(out.length && out[out.length-1].type===runs[j].type) out[out.length-1].end=runs[j].end;
+      else out.push({type:runs[j].type,start:runs[j].start,end:runs[j].end});
+    }
+    runs=out;
+  }
+  return runs;
+}
+
+// Horizontal field of view, derived from the frame's aspect ratio and an
+// assumed diagonal FOV. This matters a great deal: phones are usually held
+// upright, and a portrait 9:16 frame only spans about 41 degrees horizontally
+// versus about 67 for 16:9. Treating every video as 67 overstates how far the
+// camera turned by more than half again on exactly the videos this tool is
+// meant for.
+function horizontalFovDeg(vw,vh){
+  if(!(vw>0&&vh>0)) return 67;
+  var diag=Math.sqrt(vw*vw+vh*vh);
+  var t=Math.tan(CFG.DIAG_FOV_DEG*Math.PI/360)*(vw/diag);
+  return 2*Math.atan(t)*180/Math.PI;
+}
+
+// yaw (degrees, positive = camera turned right) contributed by one sample
+function yawOf(s){
+  if(!analysisMeta) return 0;
+  return -(s.pan/analysisMeta.W0)*analysisMeta.fovDeg;
+}
+
+// Integrate yaw forward from index i0.
+//
+// The old version stopped dead at the first sample whose sign disagreed with
+// the running total. That is fine for a slow, tidy turn, but during the sharp
+// part of a real corner the per-sample estimate is briefly unstable - the
+// picture moves further between samples than the matcher can follow, so a
+// couple of samples come back aliased or with the wrong sign. Breaking there
+// threw away the very part of the turn that carries the most rotation, and
+// left only a small tail that never reached the threshold.
+//
+// Instead we track the running total's furthest excursion and only give up
+// once it has handed back a real portion of that best value - a genuine turn
+// does not un-turn. We also report how "one-directional" the window was, so
+// that a random walk summing to a large number by luck can be rejected.
+function integrateYaw(i0,maxSeconds){
+  var t0=samples[i0]?samples[i0].t:0;
+  var acc=0, peak=0, peakIdx=i0, absSum=0, used=0, quiet=0, i;
+  for(i=i0;i<samples.length;i++){
+    var s=samples[i];
+    if(s.t-t0>maxSeconds) break;
+    if(s.nValid<4){ quiet++; if(quiet>=4 && peak!==0) break; continue; }
+    var y=yawOf(s);
+    if(Math.abs(y)<CFG.SAMPLE_NOISE_DEG){
+      quiet++;
+      if(quiet>=3 && Math.abs(peak)>0) break;
+      continue;
+    }
+    quiet=0;
+    acc+=y; absSum+=Math.abs(y); used++;
+    if(Math.abs(acc)>Math.abs(peak)){ peak=acc; peakIdx=i; }
+    if(Math.abs(peak-acc) > Math.max(CFG.RETRACE_DEG, 0.45*Math.abs(peak))) break;
+  }
+  return {
+    deg:peak,
+    n:used,
+    straightness: absSum>0 ? Math.abs(peak)/absSum : 0,
+    endT: samples[Math.min(samples.length-1,peakIdx)].t
+  };
+}
+
+function firstSampleAtOrAfter(t){
+  for(var i=0;i<samples.length;i++) if(samples[i].t>=t-1e-6) return i;
+  return -1;
+}
+
+function detectTurns(){
+  var P=PRESETS[preset];
+  var flip=!!flipCheckbox.checked;
+
+  // ---- turns right after a stop ----
+  segments.forEach(function(seg){
+    seg.turnDir=null; seg.turnDeg=0; seg.turnConf=0;
+    if(seg.type!=='stop') return;
+    if(seg.end-seg.start < 1.0) return;
+    var i0=firstSampleAtOrAfter(seg.end);
+    if(i0<0) return;
+    var res=integrateYaw(i0,CFG.TURN_WINDOW);
+    if(res.n<2) return;
+    if(res.straightness<CFG.MIN_STRAIGHTNESS) return;
+    if(Math.abs(res.deg)>=P.turnDeg){
+      var dir=res.deg>0?'right':'left';
+      if(flip) dir=(dir==='right')?'left':'right';
+      seg.turnDir=dir;
+      seg.turnDeg=Math.abs(res.deg);
+      seg.turnEndT=res.endT;
+      seg.turnConf=Math.abs(res.deg)/P.turnDeg;
+    }
+  });
+
+  // ---- turns taken while still walking ----
+  var prevWalk=walkTurns.filter(function(w){ return w.manual; });
+  walkTurns=[];
+  if(walkTurnCheckbox.checked){
+    var i=0;
+    while(i<samples.length){
+      var s=samples[i];
+      // Ignore the very start and the very end of the clip. People are still
+      // raising and aiming the phone in the first couple of seconds, which
+      // swings the picture exactly like a turn does but means nothing about
+      // the route; and a turn announced in the closing seconds is pointless
+      // because the arrival caption is already on screen.
+      if(s.t<CFG.EDGE_GUARD || s.t>duration-CFG.EDGE_GUARD_END){ i++; continue; }
+      if(s.nValid<4 || Math.abs(yawOf(s))<CFG.SAMPLE_NOISE_DEG*1.4 || inStopSegment(s.t)){ i++; continue; }
+      var res=integrateYaw(i,CFG.WALK_TURN_WINDOW);
+      if(res.n>=3 && res.straightness>=CFG.MIN_STRAIGHTNESS &&
+         Math.abs(res.deg)>=P.walkTurnDeg && !nearExistingTurn(s.t)){
+        var dir=res.deg>0?'right':'left';
+        if(flip) dir=(dir==='right')?'left':'right';
+        walkTurns.push({
+          id:walkTurnIdCounter++, t:s.t, endT:res.endT, dir:dir,
+          deg:Math.abs(res.deg), conf:Math.abs(res.deg)/P.walkTurnDeg, manual:false
+        });
+        i+=Math.max(1,res.n);
+      }else{
+        i+=Math.max(1,Math.floor(res.n/2)||1);
+      }
+    }
+  }
+  prevWalk.forEach(function(w){
+    if(!nearExistingTurn(w.t)) walkTurns.push(w);
+  });
+  walkTurns.sort(function(a,b){ return a.t-b.t; });
+
+  function inStopSegment(t){
+    for(var k=0;k<segments.length;k++){
+      if(segments[k].type==='stop' && t>=segments[k].start-0.2 && t<segments[k].end+0.4) return true;
+    }
+    return false;
+  }
+  function nearExistingTurn(t){
+    for(var k=0;k<segments.length;k++){
+      if(segments[k].turnDir && Math.abs(segments[k].end-t)<3.0) return true;
+    }
+    for(var m=0;m<walkTurns.length;m++){
+      if(Math.abs(walkTurns[m].t-t)<3.0) return true;
+    }
+    return false;
+  }
+}
+
+// =========================================================================
+// 4. telops
+// =========================================================================
+function makeTelop(text,start,end,x,y,auto){
+  return { id:telopIdCounter++, text:text, start:start, end:end, x:x, y:y, auto:!!auto, edited:false };
+}
+
+function turnText(dir){ return dir==='right' ? '右に曲がります' : '左に曲がります'; }
+
+function regenerateAutoTelops(){
+  // keep everything the user typed / moved
+  telops=telops.filter(function(tl){ return !tl.auto || tl.edited; });
+
+  var turnTimes=[];
+  segments.forEach(function(seg){
+    if(seg.type==='stop' && seg.turnDir){
+      var start=clamp(seg.end-0.6,0,Math.max(0,duration-0.5));
+      telops.push(makeTelop(turnText(seg.turnDir),start,Math.min(duration,start+CFG.TELOP_DUR),50,84,true));
+      turnTimes.push(start);
+    }
+  });
+  walkTurns.forEach(function(w){
+    var start=clamp(w.t-1.0,0,Math.max(0,duration-0.5));
+    telops.push(makeTelop(turnText(w.dir),start,Math.min(duration,start+CFG.TELOP_DUR),50,84,true));
+    turnTimes.push(start);
+  });
+
+  // "carry straight on" captions. Long walks are now split into several
+  // segments for the cruise speed-up, so also keep these spaced out - the
+  // splits are a playback-speed detail and shouldn't spawn repeated captions.
+  var straightTimes=[];
+  segments.forEach(function(seg){
+    if(seg.type!=='straight') return;
+    if(seg.end-seg.start<6.0) return;
+    var start=seg.start+0.3;
+    if(turnTimes.some(function(tt){ return Math.abs(tt-start)<3.5; })) return;
+    if(straightTimes.some(function(st){ return start-st<20; })) return;
+    straightTimes.push(start);
+    telops.push(makeTelop('道なりに進みます',start,Math.min(seg.end,start+CFG.TELOP_DUR),50,84,true));
+  });
+
+  if(duration>0){
+    telops.push(makeTelop('到着しました',Math.max(0,duration-3),duration,50,50,true));
+  }
+  telops.sort(function(a,b){ return a.start-b.start; });
+}
+
+// =========================================================================
+// 5. rendering
+// =========================================================================
+function renderAll(){
+  renderSummary();
+  renderSegmentList();
+  renderTelopList();
+  renderTelopOverlay();
+  drawTimeline();
+  renderExportEstimate();
+}
+
+function countTurns(){
+  var n=0;
+  segments.forEach(function(s){ if(s.turnDir) n++; });
+  n+=walkTurns.length;
+  return n;
+}
+
+function ffTotals(){
+  var raw=0, out=0, nStop=0, nCruise=0;
+  segments.forEach(function(s){
+    var len=s.end-s.start;
+    if(!s.enabled) return;
+    raw+=len; out+=len/segRate(s);
+    if(s.type==='stop') nStop++; else nCruise++;
+  });
+  return { count:nStop+nCruise, nStop:nStop, nCruise:nCruise, raw:raw, out:out };
+}
+
+function estimatedOutputDuration(){
+  var total=0;
+  segments.forEach(function(s){
+    var len=s.end-s.start;
+    total += s.enabled ? len/segRate(s) : len;
+  });
+  return total||duration;
+}
+
+function renderSummary(){
+  var f=ffTotals();
+  var turns=countTurns();
+  var parts=[];
+  if(f.nStop) parts.push('立ち止まり '+f.nStop+'か所');
+  if(f.nCruise) parts.push('同じ景色の直進 '+f.nCruise+'か所');
+  resultSummary.innerHTML =
+    '早送りにする区間：<b>'+f.count+'か所</b>'+(parts.length?('（'+parts.join(' / ')+'）'):'')+'<br>'+
+    'この部分の長さ：'+fmtDur(f.raw)+' → 約 '+fmtDur(f.out)+'<br>'+
+    '曲がり角：<b>'+turns+'か所</b>　／　テロップ：<b>'+telops.length+'枚</b>';
+
+  var msgs=[];
+  if(noStopsFound){
+    if(f.nCruise){
+      msgs.push('立ち止まった場所はほとんど見つかりませんでした（ずっと歩き続けている動画のようです）。かわりに<b>同じ景色が続く直進を'+cruiseSpeed+'倍速</b>にして短くしています。速さや長さは右の設定で変えられます。等倍のままがよければオフにもできます。');
+    }else{
+      msgs.push('立ち止まった場所はほとんど見つかりませんでした（ずっと歩き続けている動画のようです）。そのため<b>自動では早送りをほとんど入れていません</b>。長く感じる場合は、下の一覧で歩いている区間の「早送りする」にチェックを入れてください。');
+    }
+  }
+  if(turns===0) msgs.push('曲がり角が1つも見つかりませんでした。曲がった場所は下の一覧から「右へ曲がる／左へ曲がる」を選んで手で追加できます。');
+  resultNotice.innerHTML = msgs.length ? '<div class="notice">'+msgs.join('<br><br>')+'</div>' : '';
+}
+
+function confLabel(c){
+  if(c>=2.0) return '高';
+  if(c>=1.3) return '中';
+  return '低';
+}
+
+function renderSegmentList(){
+  var items=[];
+  segments.forEach(function(seg,i){ items.push({ t:seg.start, kind:'seg', seg:seg, i:i }); });
+  walkTurns.forEach(function(w){ items.push({ t:w.t, kind:'walk', w:w }); });
+  items.sort(function(a,b){ return a.t-b.t; });
+
+  var html='';
+  items.forEach(function(it){
+    if(it.kind==='seg'){
+      var seg=it.seg;
+      var badge = seg.turnDir ? '<span class="badge turn">曲がり角</span>'
+                : (seg.type==='stop' ? '<span class="badge stop">立ち止まっている</span>'
+                : (seg.cruise ? '<span class="badge cruise">同じ景色が続く</span>'
+                              : '<span class="badge straight">歩いている</span>'));
+      var note='';
+      if(seg.turnDir){
+        note='<div class="seg-note">'+(seg.turnDir==='right'?'右へ':'左へ')+'曲がったと判定'+
+             (seg.manualTurn ? '<span class="conf">（手動）</span>'
+                             : '<span class="conf">（約'+Math.round(seg.turnDeg)+'度・自信度 '+confLabel(seg.turnConf)+'）</span>')+
+             '</div>';
+      }
+      var sel='';
+      if(seg.type==='stop'){
+        sel='<select class="seg-dir" data-i="'+it.i+'" aria-label="曲がり角の向き">'+
+            '<option value=""'+(!seg.turnDir?' selected':'')+'>曲がっていない</option>'+
+            '<option value="right"'+(seg.turnDir==='right'?' selected':'')+'>右へ曲がる</option>'+
+            '<option value="left"'+(seg.turnDir==='left'?' selected':'')+'>左へ曲がる</option>'+
+            '</select>';
+      }
+      html+='<div class="seg" data-s="'+seg.start+'" data-e="'+seg.end+'">'+
+        '<div class="seg-head">'+badge+'<span class="seg-time mono">'+fmtTime(seg.start)+' → '+fmtTime(seg.end)+'</span>'+
+        '<span class="seg-dur">'+fmtDur(seg.end-seg.start)+'</span></div>'+
+        note+
+        '<div class="seg-actions">'+
+          '<button class="mini seg-jump" data-t="'+seg.start+'" data-end="'+seg.end+'">ここを見る</button>'+
+          '<label class="ff-toggle"><input type="checkbox" class="seg-ff" data-i="'+it.i+'"'+(seg.enabled?' checked':'')+'>'+
+            (seg.type==='stop'?('早送りする（'+speedMult+'倍）'):('早送りする（'+cruiseSpeed+'倍）'))+'</label>'+
+          sel+
+        '</div></div>';
+    }else{
+      var w=it.w;
+      html+='<div class="seg" data-s="'+Math.max(0,w.t-1.5)+'" data-e="'+(w.t+1.5)+'">'+
+        '<div class="seg-head"><span class="badge turn">曲がり角</span>'+
+        '<span class="seg-time mono">'+fmtTime(w.t)+'</span>'+
+        '<span class="seg-dur">歩きながら</span></div>'+
+        '<div class="seg-note">'+(w.dir==='right'?'右へ':'左へ')+'曲がったと判定'+
+        (w.manual?'<span class="conf">（手動）</span>':'<span class="conf">（約'+Math.round(w.deg)+'度・自信度 '+confLabel(w.conf)+'）</span>')+'</div>'+
+        '<div class="seg-actions">'+
+          '<button class="mini seg-jump" data-t="'+Math.max(0,w.t-2)+'" data-end="'+(w.t+3)+'">ここを見る</button>'+
+          '<select class="walk-dir" data-id="'+w.id+'" aria-label="曲がり角の向き">'+
+            '<option value="right"'+(w.dir==='right'?' selected':'')+'>右へ曲がる</option>'+
+            '<option value="left"'+(w.dir==='left'?' selected':'')+'>左へ曲がる</option>'+
+            '<option value="">曲がっていない（削除）</option>'+
+          '</select>'+
+        '</div></div>';
+    }
+  });
+  if(!items.length) html='<div class="empty-note">区間が見つかりませんでした。</div>';
+  segmentListEl.innerHTML=html;
+
+  Array.prototype.forEach.call(segmentListEl.querySelectorAll('.seg-jump'),function(b){
+    b.addEventListener('click',function(){
+      playClip(parseFloat(b.dataset.t),parseFloat(b.dataset.end));
+    });
+  });
+  Array.prototype.forEach.call(segmentListEl.querySelectorAll('.seg-ff'),function(cb){
+    cb.addEventListener('change',function(){
+      var seg=segments[parseInt(cb.dataset.i,10)];
+      if(!seg) return;
+      seg.enabled=cb.checked; seg.userToggled=true;
+      renderSummary(); drawTimeline(); renderExportEstimate();
+    });
+  });
+  Array.prototype.forEach.call(segmentListEl.querySelectorAll('.seg-dir'),function(sel){
+    sel.addEventListener('change',function(){
+      var seg=segments[parseInt(sel.dataset.i,10)];
+      if(!seg) return;
+      seg.turnDir=sel.value||null;
+      seg.manualTurn=true;
+      if(seg.turnDir && !seg.userToggled) seg.enabled=false;
+      regenerateAutoTelops();
+      renderAll();
+    });
+  });
+  Array.prototype.forEach.call(segmentListEl.querySelectorAll('.walk-dir'),function(sel){
+    sel.addEventListener('change',function(){
+      var id=parseInt(sel.dataset.id,10);
+      var w=null;
+      for(var k=0;k<walkTurns.length;k++) if(walkTurns[k].id===id) w=walkTurns[k];
+      if(!w) return;
+      if(!sel.value){
+        walkTurns=walkTurns.filter(function(x){ return x.id!==id; });
+      }else{
+        w.dir=sel.value; w.manual=true;
+      }
+      regenerateAutoTelops();
+      renderAll();
+    });
+  });
+  markCurrentSegment();
+}
+
+// Only the highlight is updated while playing — re-rendering the whole list
+// would close any dropdown the user has open.
+function markCurrentSegment(){
+  var t=video.currentTime;
+  Array.prototype.forEach.call(segmentListEl.querySelectorAll('.seg'),function(el){
+    var a=parseFloat(el.dataset.s), b=parseFloat(el.dataset.e);
+    el.classList.toggle('now', t>=a && t<b);
+  });
+}
+
+function segRate(seg){
+  // Stops get the speed the user picked; walking gets the gentler fixed
+  // cruise speed, because the route still has to be followable.
+  if(seg.type==='stop') return speedMult;
+  return cruiseSpeed;
+}
+
+function renderExportEstimate(){
+  exportEstimate.textContent='書き出し後の長さ：約 '+fmtDur(estimatedOutputDuration())+'（元の動画は '+fmtDur(duration)+'）';
+}
+
+// ---------- timeline ----------
+function drawTimeline(){
+  if(!timelineCanvas.clientWidth) return;
+  var dpr=window.devicePixelRatio||1;
+  var W=timelineCanvas.clientWidth, H=112;
+  timelineCanvas.width=Math.round(W*dpr);
+  timelineCanvas.height=Math.round(H*dpr);
+  timelineCanvas.style.height=H+'px';
+  tctx.setTransform(dpr,0,0,dpr,0,0);
+  tctx.clearRect(0,0,W,H);
+  tctx.fillStyle='#FBFAF7';
+  tctx.fillRect(0,0,W,H);
+  if(!duration) return;
+
+  var top=16, bodyH=H-top-18;
+
+  // segment bands
+  segments.forEach(function(seg){
+    var x1=(seg.start/duration)*W, x2=(seg.end/duration)*W;
+    var w=Math.max(1.5,x2-x1);
+    var fill = seg.turnDir ? '#F3C6B2'
+             : (seg.type==='stop' ? '#F3DCAE'
+             : (seg.cruise ? '#D8E3F2' : '#CDE4DF'));
+    tctx.fillStyle=fill;
+    tctx.fillRect(x1,top,w,bodyH);
+    if(seg.enabled){
+      // diagonal hatch = will be fast-forwarded
+      tctx.save();
+      tctx.beginPath(); tctx.rect(x1,top,w,bodyH); tctx.clip();
+      tctx.strokeStyle='rgba(60,55,48,.28)'; tctx.lineWidth=1;
+      for(var d=-bodyH; d<w+bodyH; d+=7){
+        tctx.beginPath();
+        tctx.moveTo(x1+d,top+bodyH);
+        tctx.lineTo(x1+d+bodyH,top);
+        tctx.stroke();
+      }
+      tctx.restore();
+    }
+    tctx.strokeStyle='rgba(34,31,26,.16)';
+    tctx.lineWidth=1;
+    tctx.strokeRect(x1+.5,top+.5,w-1,bodyH-1);
+  });
+
+  // motion trace
+  if(samples.length>1){
+    var maxR=0;
+    samples.forEach(function(s){ var r=isFinite(s.rateS)?s.rateS:s.rate; if(isFinite(r)&&r>maxR) maxR=r; });
+    maxR=Math.max(maxR,stopThresholdUsed*3,1e-4);
+    tctx.strokeStyle='rgba(34,31,26,.42)';
+    tctx.lineWidth=1.2;
+    tctx.beginPath();
+    samples.forEach(function(s,i){
+      var x=(s.t/duration)*W;
+      var r=isFinite(s.rateS)?s.rateS:s.rate;
+      var y=top+bodyH-clamp((r/maxR),0,1)*(bodyH-4)-2;
+      if(i===0) tctx.moveTo(x,y); else tctx.lineTo(x,y);
+    });
+    tctx.stroke();
+    // threshold line
+    var ty=top+bodyH-clamp(stopThresholdUsed/maxR,0,1)*(bodyH-4)-2;
+    tctx.strokeStyle='rgba(196,85,46,.55)';
+    tctx.setLineDash([4,3]);
+    tctx.beginPath(); tctx.moveTo(0,ty); tctx.lineTo(W,ty); tctx.stroke();
+    tctx.setLineDash([]);
+  }
+
+  // walking-turn markers
+  walkTurns.forEach(function(w){
+    var x=(w.t/duration)*W;
+    tctx.fillStyle='#C4552E';
+    tctx.fillRect(x-1.5,top,3,bodyH);
+  });
+
+  // telop pins
+  telops.forEach(function(tl){
+    var x=(tl.start/duration)*W;
+    tctx.fillStyle='#221F1A';
+    tctx.beginPath(); tctx.arc(x,8,4.5,0,Math.PI*2); tctx.fill();
+  });
+
+  // time ruler
+  tctx.fillStyle='#8B857A';
+  tctx.font='10px ui-monospace, Menlo, Consolas, monospace';
+  tctx.textAlign='left';
+  var stepSec=chooseRulerStep(duration,W);
+  for(var t=0;t<=duration;t+=stepSec){
+    var x=(t/duration)*W;
+    tctx.fillRect(x,H-16,1,4);
+    if(x<W-28) tctx.fillText(fmtTime(t),x+3,H-4);
+  }
+
+  // playhead
+  var px=(video.currentTime/duration)*W;
+  tctx.strokeStyle='#12705F'; tctx.lineWidth=2;
+  tctx.beginPath(); tctx.moveTo(px,top-6); tctx.lineTo(px,top+bodyH); tctx.stroke();
+  tctx.fillStyle='#12705F';
+  tctx.beginPath(); tctx.arc(px,top-7,4,0,Math.PI*2); tctx.fill();
+}
+
+function chooseRulerStep(dur,W){
+  var candidates=[1,2,5,10,15,30,60,120,300,600];
+  for(var i=0;i<candidates.length;i++){
+    if((dur/candidates[i])*40 < W) return candidates[i];
+  }
+  return 900;
+}
+
+timelineCanvas.addEventListener('click',function(e){
+  if(!duration||analyzing) return;
+  var rect=timelineCanvas.getBoundingClientRect();
+  var t=clamp(((e.clientX-rect.left)/rect.width)*duration,0,Math.max(0,duration-0.05));
+  clipPreviewUntil=null;
+  video.currentTime=t;
+  renderTelopOverlay();
+  drawTimeline();
+});
+
+timelineCanvas.addEventListener('mousemove',function(e){
+  if(!duration) return;
+  var rect=timelineCanvas.getBoundingClientRect();
+  var t=clamp(((e.clientX-rect.left)/rect.width)*duration,0,duration);
+  var label=fmtTime(t);
+  var seg=null;
+  for(var i=0;i<segments.length;i++) if(t>=segments[i].start&&t<segments[i].end) seg=segments[i];
+  if(seg){
+    label+='　'+(seg.turnDir?('曲がり角（'+(seg.turnDir==='right'?'右':'左')+'）')
+              :(seg.type==='stop'?'立ち止まっている':(seg.cruise?'同じ景色が続く直進':'歩いている')));
+    if(seg.enabled) label+='　⏩'+segRate(seg)+'倍';
+  }
+  tlTip.textContent=label;
+  tlTip.style.left=(e.clientX-rect.left)+'px';
+  tlTip.style.top='-4px';
+  tlTip.style.opacity='1';
+});
+timelineCanvas.addEventListener('mouseleave',function(){ tlTip.style.opacity='0'; });
+window.addEventListener('resize',function(){ drawTimeline(); renderTelopOverlay(); });
+
+// =========================================================================
+// 6. playback
+// =========================================================================
+video.addEventListener('timeupdate',function(){
+  if(analyzing) return;
+  timeReadout.textContent=fmtTime(video.currentTime)+' / '+fmtTime(duration);
+  if(clipPreviewUntil!==null && video.currentTime>=clipPreviewUntil){
+    clipPreviewUntil=null;
+    video.pause();
+    btnPlay.textContent='▶ 再生';
+  }
+  applyLivePlaybackRules();
+  renderTelopOverlay();
+  drawTimeline();
+  if(!exporting) refreshNowHighlights();
+});
+
+var lastHighlightT=-99;
+function refreshNowHighlights(){
+  if(Math.abs(video.currentTime-lastHighlightT)<0.4) return;
+  lastHighlightT=video.currentTime;
+  markCurrentSegment();
+  markCurrentTelops();
+}
+
+function applyLivePlaybackRules(){
+  if(analyzing||video.paused) return;
+  var rate=1, mute=false;
+  var useFF = exporting || previewFF.checked;
+  if(useFF && clipPreviewUntil===null){
+    var t=video.currentTime, seg=null;
+    for(var i=0;i<segments.length;i++){
+      if(segments[i].enabled && t>=segments[i].start && t<segments[i].end){ seg=segments[i]; break; }
+    }
+    if(seg){ rate=segRate(seg); mute=muteCheckbox.checked; }
+  }
+  if(Math.abs(video.playbackRate-rate)>0.01) video.playbackRate=rate;
+  setAudioMuted(mute);
+}
+
+function setAudioMuted(m){
+  if(audioGraph){
+    audioGraph.rec.gain.value = m?0:1;
+    audioGraph.monitor.gain.value = exporting?0:(m?0:1);
+  }else{
+    if(video.muted!==m) video.muted=m;
+  }
+}
+
+function playClip(start,end){
+  clipPreviewUntil=Math.min(duration,end+1.0);
+  video.currentTime=Math.max(0,start-0.4);
+  video.playbackRate=1;
+  setAudioMuted(false);
+  var p=video.play();
+  if(p&&p.catch) p.catch(function(){});
+  btnPlay.textContent='⏸ 一時停止';
+}
+
+btnPlay.addEventListener('click',function(){
+  if(analyzing) return;
+  if(video.paused){
+    clipPreviewUntil=null;
+    var p=video.play();
+    if(p&&p.catch) p.catch(function(){});
+    btnPlay.textContent='⏸ 一時停止';
+  }else{
+    video.pause();
+    btnPlay.textContent='▶ 再生';
+  }
+});
+btnBack.addEventListener('click',function(){ clipPreviewUntil=null; video.currentTime=Math.max(0,video.currentTime-5); });
+btnFwd.addEventListener('click',function(){ clipPreviewUntil=null; video.currentTime=Math.min(duration-0.05,video.currentTime+5); });
+video.addEventListener('ended',function(){ btnPlay.textContent='▶ 再生'; clipPreviewUntil=null; });
+video.addEventListener('pause',function(){ if(!exporting) btnPlay.textContent='▶ 再生'; });
+
+document.addEventListener('keydown',function(e){
+  if(analyzing||exporting) return;
+  var tag=(e.target&&e.target.tagName)||'';
+  if(tag==='INPUT'||tag==='SELECT'||tag==='TEXTAREA') return;
+  if(previewPanel.classList.contains('hidden')) return;
+  if(e.code==='Space'){ e.preventDefault(); btnPlay.click(); }
+  else if(e.code==='ArrowLeft'){ e.preventDefault(); btnBack.click(); }
+  else if(e.code==='ArrowRight'){ e.preventDefault(); btnFwd.click(); }
+});
+
+// =========================================================================
+// 7. telop UI
+// =========================================================================
+btnAddTelop.addEventListener('click',function(){
+  var t=video.currentTime;
+  var tl=makeTelop('ここに文字を入れます',t,Math.min(duration,t+3),50,84,false);
+  tl.edited=true;
+  telops.push(tl);
+  telops.sort(function(a,b){ return a.start-b.start; });
+  renderTelopList(); renderTelopOverlay(); drawTimeline(); renderSummary();
+});
+
+function telopFontPx(){
+  // matches the export: font size = 4.5% of the video's height
+  var r=previewWrapper.getBoundingClientRect();
+  return Math.max(9,r.height*0.045);
+}
+
+function renderTelopOverlay(){
+  if(dragState) return;   // never rebuild the layer out from under a drag
+  telopLayer.innerHTML='';
+  if(!duration) return;
+  var t=video.currentTime, fs=telopFontPx();
+  telops.forEach(function(tl){
+    if(t<tl.start||t>tl.end) return;
+    var tag=document.createElement('div');
+    tag.className='telop-tag';
+    tag.textContent=tl.text;
+    tag.style.left=tl.x+'%';
+    tag.style.top=tl.y+'%';
+    tag.style.fontSize=fs+'px';
+    tag.style.borderWidth=Math.max(1,fs*0.055)+'px';
+    tag.title='ドラッグで位置を変えられます';
+    tag.dataset.id=tl.id;
+    tag.addEventListener('pointerdown',startDrag);
+    telopLayer.appendChild(tag);
+  });
+}
+
+function startDrag(e){
+  e.preventDefault();
+  var id=e.currentTarget.dataset.id, tl=null;
+  for(var i=0;i<telops.length;i++) if(String(telops[i].id)===String(id)) tl=telops[i];
+  if(!tl) return;
+  dragState={ tl:tl, tag:e.currentTarget };
+  e.currentTarget.classList.add('editing');
+  window.addEventListener('pointermove',onDrag);
+  window.addEventListener('pointerup',endDrag);
+}
+function onDrag(e){
+  if(!dragState) return;
+  var rect=previewWrapper.getBoundingClientRect();
+  var x=clamp(((e.clientX-rect.left)/rect.width)*100,3,97);
+  var y=clamp(((e.clientY-rect.top)/rect.height)*100,5,95);
+  dragState.tl.x=x; dragState.tl.y=y; dragState.tl.edited=true;
+  dragState.tag.style.left=x+'%';
+  dragState.tag.style.top=y+'%';
+}
+function endDrag(){
+  if(dragState) dragState.tag.classList.remove('editing');
+  dragState=null;
+  window.removeEventListener('pointermove',onDrag);
+  window.removeEventListener('pointerup',endDrag);
+}
+
+function renderTelopList(){
+  telopEmpty.classList.toggle('hidden',telops.length>0);
+  var html='';
+  telops.forEach(function(tl){
+    html+='<div class="telop-item" data-id="'+tl.id+'">'+
+      '<input type="text" class="telop-text" data-id="'+tl.id+'" value="'+escapeHtml(tl.text)+'" aria-label="テロップの文字">'+
+      '<div class="telop-meta">'+
+        '<span>表示</span>'+
+        '<input type="number" step="0.1" min="0" class="telop-start" data-id="'+tl.id+'" value="'+tl.start.toFixed(1)+'" aria-label="開始秒">'+
+        '<span>秒 〜</span>'+
+        '<input type="number" step="0.1" min="0" class="telop-end" data-id="'+tl.id+'" value="'+tl.end.toFixed(1)+'" aria-label="終了秒">'+
+        '<span>秒</span>'+
+        '<span class="spacer"></span>'+
+        '<button class="mini telop-jump" data-id="'+tl.id+'">見る</button>'+
+        '<button class="mini danger telop-delete" data-id="'+tl.id+'">削除</button>'+
+      '</div>'+
+      '<div class="pos-row"><span>位置</span>'+
+        '<button class="mini telop-pos" data-id="'+tl.id+'" data-y="12">上</button>'+
+        '<button class="mini telop-pos" data-id="'+tl.id+'" data-y="50">中央</button>'+
+        '<button class="mini telop-pos" data-id="'+tl.id+'" data-y="84">下</button>'+
+        '<button class="mini telop-now" data-id="'+tl.id+'">今の時間から表示</button>'+
+      '</div>'+
+    '</div>';
+  });
+  telopListEl.innerHTML=html;
+
+  function find(id){
+    for(var i=0;i<telops.length;i++) if(String(telops[i].id)===String(id)) return telops[i];
+    return null;
+  }
+
+  Array.prototype.forEach.call(telopListEl.querySelectorAll('.telop-text'),function(el){
+    el.addEventListener('input',function(){
+      var tl=find(el.dataset.id); if(!tl) return;
+      tl.text=el.value; tl.edited=true;
+      renderTelopOverlay();
+    });
+  });
+  Array.prototype.forEach.call(telopListEl.querySelectorAll('.telop-start'),function(el){
+    el.addEventListener('change',function(){ commitTime(el,'start'); });
+  });
+  Array.prototype.forEach.call(telopListEl.querySelectorAll('.telop-end'),function(el){
+    el.addEventListener('change',function(){ commitTime(el,'end'); });
+  });
+  Array.prototype.forEach.call(telopListEl.querySelectorAll('.telop-jump'),function(el){
+    el.addEventListener('click',function(){
+      var tl=find(el.dataset.id); if(!tl) return;
+      playClip(tl.start,tl.end);
+    });
+  });
+  Array.prototype.forEach.call(telopListEl.querySelectorAll('.telop-delete'),function(el){
+    el.addEventListener('click',function(){
+      telops=telops.filter(function(x){ return String(x.id)!==String(el.dataset.id); });
+      renderTelopList(); renderTelopOverlay(); drawTimeline(); renderSummary();
+    });
+  });
+  Array.prototype.forEach.call(telopListEl.querySelectorAll('.telop-pos'),function(el){
+    el.addEventListener('click',function(){
+      var tl=find(el.dataset.id); if(!tl) return;
+      tl.y=parseFloat(el.dataset.y); tl.x=50; tl.edited=true;
+      renderTelopOverlay();
+    });
+  });
+  Array.prototype.forEach.call(telopListEl.querySelectorAll('.telop-now'),function(el){
+    el.addEventListener('click',function(){
+      var tl=find(el.dataset.id); if(!tl) return;
+      var len=Math.max(0.5,tl.end-tl.start);
+      tl.start=clamp(video.currentTime,0,Math.max(0,duration-0.5));
+      tl.end=Math.min(duration,tl.start+len);
+      tl.edited=true;
+      renderTelopList(); renderTelopOverlay(); drawTimeline();
+    });
+  });
+
+  // validation: keep start < end, inside the video
+  function commitTime(el,which){
+    var tl=find(el.dataset.id); if(!tl) return;
+    var v=parseFloat(el.value);
+    if(!isFinite(v)) v = which==='start' ? tl.start : tl.end;
+    v=clamp(v,0,duration);
+    if(which==='start'){
+      tl.start=Math.min(v,duration-0.3);
+      if(tl.end<tl.start+0.3) tl.end=Math.min(duration,tl.start+0.3);
+    }else{
+      tl.end=v;
+      if(tl.end<tl.start+0.3) tl.end=Math.min(duration,tl.start+0.3);
+      if(tl.start>tl.end-0.3) tl.start=Math.max(0,tl.end-0.3);
+    }
+    tl.edited=true;
+    renderTelopList(); renderTelopOverlay(); drawTimeline();
+  }
+  markCurrentTelops();
+}
+
+function markCurrentTelops(){
+  var t=video.currentTime;
+  Array.prototype.forEach.call(telopListEl.querySelectorAll('.telop-item'),function(el){
+    var id=el.dataset.id, tl=null;
+    for(var i=0;i<telops.length;i++) if(String(telops[i].id)===String(id)) tl=telops[i];
+    el.classList.toggle('now', !!tl && t>=tl.start && t<=tl.end);
+  });
+}
+
+// =========================================================================
+// 8. settings
+// =========================================================================
+Array.prototype.forEach.call(presetGroup.querySelectorAll('button'),function(b){
+  b.addEventListener('click',function(){
+    if(analyzing||exporting) return;
+    Array.prototype.forEach.call(presetGroup.querySelectorAll('button'),function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    preset=b.dataset.preset;
+    presetHelp.textContent=PRESETS[preset].help;
+    classify(true);
+    renderAll();
+  });
+});
+Array.prototype.forEach.call(speedGroup.querySelectorAll('button'),function(b){
+  b.addEventListener('click',function(){
+    Array.prototype.forEach.call(speedGroup.querySelectorAll('button'),function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    speedMult=parseFloat(b.dataset.speed);
+    renderSummary(); renderExportEstimate(); drawTimeline();
+  });
+});
+walkTurnCheckbox.addEventListener('change',function(){
+  if(!samples.length) return;
+  classify(true); renderAll();
+});
+function updateCruiseHelp(){
+  cruiseOptions.classList.toggle('disabled', !cruiseCheckbox.checked);
+  cruiseHelp.textContent=cruiseMinLen+'秒より長くまっすぐ歩いている所を'+cruiseSpeed+'倍速にします。';
+}
+updateCruiseHelp();
+
+cruiseCheckbox.addEventListener('change',function(){
+  updateCruiseHelp();
+  if(!samples.length) return;
+  classify(true); renderAll();
+});
+
+// Picking a different cruise speed or minimum length only changes how the
+// segments are laid out, not the motion measurements, so it reclassifies live
+// exactly like the presets above - no need to re-analyse the video.
+function wireCruisePicker(group,attr,needsReclassify,onPick){
+  Array.prototype.forEach.call(group.querySelectorAll('button'),function(b){
+    b.addEventListener('click',function(){
+      Array.prototype.forEach.call(group.querySelectorAll('button'),function(x){ x.classList.remove('on'); });
+      b.classList.add('on');
+      onPick(parseFloat(b.dataset[attr]));
+      updateCruiseHelp();
+      if(!samples.length) return;
+      // The speed only affects playback, so the segments (and the user's
+      // per-segment choices) can stay exactly as they are. The minimum length
+      // decides where the segment boundaries fall, so that one has to redo it.
+      if(needsReclassify) classify(true);
+      renderAll();
+    });
+  });
+}
+wireCruisePicker(cruiseSpeedGroup,'cspeed',false,function(v){ cruiseSpeed=v; });
+wireCruisePicker(cruiseLenGroup,'clen',true,function(v){ cruiseMinLen=v; });
+flipCheckbox.addEventListener('change',function(){
+  // flip both the automatic and the manual decisions, plus existing telop text
+  segments.forEach(function(s){ if(s.turnDir) s.turnDir=(s.turnDir==='right')?'left':'right'; });
+  walkTurns.forEach(function(w){ w.dir=(w.dir==='right')?'left':'right'; });
+  telops.forEach(function(tl){
+    if(tl.text==='右に曲がります') tl.text='左に曲がります';
+    else if(tl.text==='左に曲がります') tl.text='右に曲がります';
+  });
+  renderAll();
+});
+btnReanalyze.addEventListener('click',function(){
+  if(analyzing||exporting||!video.src) return;
+  telops=[]; segments=[]; walkTurns=[];
+  startAnalysis();
+});
+
+// =========================================================================
+// 9. export
+// =========================================================================
+function ensureAudioGraph(){
+  if(audioGraph!==undefined) return audioGraph;
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC) throw new Error('no AudioContext');
+    var ctx=new AC();
+    var src=ctx.createMediaElementSource(video);
+    var monitor=ctx.createGain();
+    var rec=ctx.createGain();
+    var dest=ctx.createMediaStreamDestination();
+    src.connect(monitor); monitor.connect(ctx.destination);
+    src.connect(rec); rec.connect(dest);
+    audioGraph={ ctx:ctx, monitor:monitor, rec:rec, dest:dest };
+  }catch(e){
+    audioGraph=null;
+  }
+  return audioGraph;
+}
+
+function pickMimeType(){
+  var candidates=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'];
+  for(var i=0;i<candidates.length;i++){
+    if(window.MediaRecorder && MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
+  }
+  return '';
+}
+
+var wrapCache={};
+function wrapLines(ctx,text,maxWidth){
+  var key=text+'|'+Math.round(maxWidth)+'|'+ctx.font;
+  if(wrapCache[key]) return wrapCache[key];
+  var lines=[], line='';
+  var chars=Array.from(text);
+  for(var i=0;i<chars.length;i++){
+    var test=line+chars[i];
+    if(ctx.measureText(test).width>maxWidth && line){
+      lines.push(line); line=chars[i];
+    }else{
+      line=test;
+    }
+  }
+  if(line) lines.push(line);
+  if(!lines.length) lines=[''];
+  wrapCache[key]=lines;
+  return lines;
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+btnExport.addEventListener('click',exportVideo);
+
+async function exportVideo(){
+  if(analyzing||exporting) return;
+  if(!window.MediaRecorder){
+    exportStatus.innerHTML='<span style="color:var(--danger)">このブラウザは書き出しに対応していません。Chrome または Edge をお試しください。</span>';
+    return;
+  }
+  exporting=true;
+  setStep(4);
+  btnExport.disabled=true;
+  btnReanalyze.disabled=true;
+  exportProgress.classList.remove('hidden');
+  exportProgress.value=0;
+  exportStatus.textContent='準備しています…';
+  downloadArea.innerHTML='';
+  wrapCache={};
+
+  video.pause();
+  await seekTo(0);
+
+  var cw=videoW, ch=videoH;
+  var canvas=document.createElement('canvas');
+  canvas.width=cw; canvas.height=ch;
+  var ctx=canvas.getContext('2d');
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,cw,ch);
+
+  var mimeType=pickMimeType();
+  var canvasStream=canvas.captureStream(30);
+  var audioTracks=[];
+  var g=ensureAudioGraph();
+  if(g){
+    audioTracks=g.dest.stream.getAudioTracks();
+    if(g.ctx.state==='suspended'){ try{ await g.ctx.resume(); }catch(e){} }
+    video.muted=false;
+  }else{
+    try{
+      var av=video.captureStream?video.captureStream():(video.mozCaptureStream?video.mozCaptureStream():null);
+      if(av) audioTracks=av.getAudioTracks();
+    }catch(e){}
+  }
+  var combined=new MediaStream(canvasStream.getVideoTracks().concat(audioTracks));
+
+  var recorder;
+  try{
+    recorder=new MediaRecorder(combined, mimeType?{ mimeType:mimeType, videoBitsPerSecond:6000000 }:undefined);
+  }catch(e){
+    exportStatus.innerHTML='<span style="color:var(--danger)">録画を開始できませんでした。Chrome または Edge をお試しください。</span>';
+    exporting=false; btnExport.disabled=false; btnReanalyze.disabled=false;
+    return;
+  }
+  var chunks=[];
+  recorder.ondataavailable=function(e){ if(e.data && e.data.size>0) chunks.push(e.data); };
+  var stopped=new Promise(function(resolve){ recorder.onstop=resolve; });
+
+  var hiddenWarned=false;
+  function onVis(){
+    if(document.hidden && !hiddenWarned){
+      hiddenWarned=true;
+      exportStatus.textContent='⚠ 別のタブに切り替わりました。映像が途切れることがあります。このタブに戻してください。';
+    }
+  }
+  document.addEventListener('visibilitychange',onVis);
+
+  var drawing=true;
+  var estOut=estimatedOutputDuration();
+  var startWall=performance.now();
+
+  function drawFrame(){
+    if(!drawing) return;
+    try{ ctx.drawImage(video,0,0,cw,ch); }catch(e){}
+
+    var t=video.currentTime;
+    var fontSize=Math.round(ch*0.045);
+    ctx.font='700 '+fontSize+'px "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+
+    for(var i=0;i<telops.length;i++){
+      var tl=telops[i];
+      if(t<tl.start||t>tl.end) continue;
+      var maxW=cw*0.84;
+      var lines=wrapLines(ctx,tl.text,maxW);
+      var lineH=fontSize*1.34;
+      var textW=0;
+      for(var k=0;k<lines.length;k++) textW=Math.max(textW,ctx.measureText(lines[k]).width);
+      var padX=fontSize*0.58, padY=fontSize*0.36;
+      var boxW=textW+padX*2, boxH=lines.length*lineH+padY*2;
+      var cx=clamp((tl.x/100)*cw, boxW/2+6, cw-boxW/2-6);
+      var cy=clamp((tl.y/100)*ch, boxH/2+6, ch-boxH/2-6);
+      var bx=cx-boxW/2, by=cy-boxH/2;
+      var rr=Math.max(4,fontSize*0.28);
+
+      ctx.fillStyle='rgba(16,20,18,0.80)';
+      roundRect(ctx,bx,by,boxW,boxH,rr); ctx.fill();
+      ctx.strokeStyle='#F0B44A';
+      ctx.lineWidth=Math.max(2,fontSize*0.055);
+      roundRect(ctx,bx,by,boxW,boxH,rr); ctx.stroke();
+      ctx.fillStyle='#FFFFFF';
+      for(var m=0;m<lines.length;m++){
+        ctx.fillText(lines[m], cx, by+padY+lineH*(m+0.5));
+      }
+    }
+
+    applyLivePlaybackRules();
+    var pct=duration?clamp((t/duration)*100,0,100):0;
+    exportProgress.value=pct;
+    var elapsed=(performance.now()-startWall)/1000;
+    var remain=estOut-elapsed;
+    exportStatus.textContent = hiddenWarned
+      ? exportStatus.textContent
+      : '書き出し中… '+Math.round(pct)+'%'+(remain>1?('　残り 約'+fmtDur(remain)):'');
+    requestAnimationFrame(drawFrame);
+  }
+
+  try{
+    recorder.start(500);
+    setAudioMuted(false);
+    var p=video.play();
+    if(p&&p.then) await p;
+    drawFrame();
+    await new Promise(function(resolve){
+      function onEnded(){ video.removeEventListener('ended',onEnded); resolve(); }
+      video.addEventListener('ended',onEnded);
+    });
+  }catch(e){
+    exportStatus.innerHTML='<span style="color:var(--danger)">書き出し中にエラーが発生しました。</span>';
+  }
+
+  drawing=false;
+  document.removeEventListener('visibilitychange',onVis);
+  video.playbackRate=1;
+  try{ recorder.stop(); }catch(e){}
+  await stopped;
+  if(audioGraph){ audioGraph.monitor.gain.value=1; audioGraph.rec.gain.value=1; }
+
+  exporting=false;
+  btnExport.disabled=false;
+  btnReanalyze.disabled=false;
+  btnPlay.textContent='▶ 再生';
+  setStep(3);
+
+  if(!chunks.length){
+    exportStatus.innerHTML='<span style="color:var(--danger)">映像を録画できませんでした。Chrome または Edge でお試しください。</span>';
+    return;
+  }
+
+  var blob=new Blob(chunks,{ type:mimeType||'video/webm' });
+  var url=URL.createObjectURL(blob);
+  var ext=(mimeType && mimeType.indexOf('mp4')>=0)?'mp4':'webm';
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='道案内動画_編集済み.'+ext;
+  a.className='download-btn';
+  a.textContent='⬇ 動画をダウンロード（.'+ext+'　'+(blob.size/1048576).toFixed(1)+'MB）';
+  downloadArea.appendChild(a);
+  if(ext==='webm'){
+    var note=document.createElement('div');
+    note.className='empty-note';
+    note.style.marginTop='8px';
+    note.textContent='WebM形式で保存されます。パソコンやスマホの標準プレーヤー、YouTube、LINEなどでそのまま再生できます。開けないアプリがある場合は mp4 への変換が必要です。';
+    downloadArea.appendChild(note);
+  }
+  exportProgress.value=100;
+  exportStatus.textContent='書き出しが完了しました。';
+}
+
+})();
+</script>
+</body>
+</html>

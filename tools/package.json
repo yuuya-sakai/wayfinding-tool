@@ -1,0 +1,9 @@
+{
+  "name": "wayfinding-tool-dev-tools",
+  "private": true,
+  "description": "Dev-only tooling for testing michi-annai-editor.html against a real video. Not part of the shipped tool (which stays a single-file, no-build, no-server HTML page).",
+  "type": "module",
+  "dependencies": {
+    "puppeteer-core": "^25.9.0"
+  }
+}
