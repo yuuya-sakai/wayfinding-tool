@@ -110,6 +110,7 @@
     border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);
   }
   .panel + .panel{margin-top:16px;}
+  #preview-panel{position:relative;}   /* anchor for the caption editor */
   .panel h2{
     font-size:15px;font-weight:700;margin:0 0 4px;display:flex;align-items:center;gap:8px;
   }
@@ -184,7 +185,8 @@
   .telop-tag.editing{border-color:#fff;box-shadow:0 0 0 3px rgba(18,112,95,.85);}
 
   .telop-editor{
-    position:absolute;z-index:12;width:min(320px,88%);
+    position:absolute;z-index:12;
+    width:min(320px,calc(100% - 24px));
     background:var(--card);border:1px solid var(--line-strong);
     border-radius:10px;padding:10px;
     box-shadow:0 8px 28px rgba(0,0,0,.34);
@@ -195,7 +197,8 @@
     border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--text);
   }
   .telop-editor input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
-  .te-row{display:flex;align-items:center;gap:6px;margin-top:9px;}
+  .te-row{display:flex;align-items:center;gap:6px;margin-top:9px;flex-wrap:wrap;}
+  .te-row button{white-space:nowrap;}
   .te-label{font-size:12px;color:var(--dim);}
   #te-close{margin-left:auto;}
   .analyzing-veil{
@@ -310,7 +313,10 @@
     border-radius:6px;padding:4px 5px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
   }
   .telop-meta .spacer{margin-left:auto;}
-  .pos-row{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--dim);}
+  .pos-row{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--dim);flex-wrap:wrap;}
+  /* without this the labels break mid-word inside the buttons on a phone */
+  .pos-row button,.telop-meta button{white-space:nowrap;}
+  .telop-meta .spacer{flex:1 1 auto;}
   .empty-note{color:var(--dim);font-size:13px;line-height:1.65;}
 
   .status-line{font-size:13px;color:var(--dim);margin-top:10px;min-height:18px;}
@@ -339,6 +345,61 @@
     .ab-est{font-size:12.5px;}
     body.has-action-bar{padding-bottom:104px;}
   }
+  /* =====================================================================
+     Responsive. The tool gets shared as a link, so plenty of people will
+     open it on a phone rather than a desktop browser.
+     ===================================================================== */
+
+  /* Narrow phones: the four step chips do not fit on one line. Rather than
+     leaving them in a sideways-scrolling strip (where steps 3 and 4 are
+     invisible and nothing hints that they exist), lay them out two by two. */
+  @media (max-width:560px){
+    .steps{display:grid;grid-template-columns:1fr 1fr;gap:0 8px;overflow:visible;}
+    .step{min-width:0;font-size:12px;padding:7px 2px 8px;}
+    .step .num{margin-right:4px;}
+  }
+
+  @media (max-width:700px){
+    header{padding:18px 16px 0;}
+    header h1{font-size:21px;}
+    .step-hint{padding:9px 16px 12px;}
+    .panel{padding:15px;}
+    /* fingers, not mouse pointers */
+    button.mini{padding:9px 12px;font-size:13px;}
+    .segmented button,.sub-field .segmented button{padding:11px 4px;}
+    .seg-actions select{padding:8px 7px;font-size:13px;}
+    .telop-meta input[type=number]{width:70px;padding:7px 6px;font-size:13px;}
+    .telop-item input[type=text]{padding:9px 10px;}
+    #timeline{height:120px;}
+    .telop-editor{width:min(320px,calc(100% - 16px));}
+    /* single-character buttons (上/中央/下) are otherwise too narrow to tap */
+    .pos-row button,.te-row button{min-width:44px;}
+  }
+
+  /* Coarse pointers get roomier hit areas regardless of window width. */
+  @media (pointer:coarse){
+    button.mini{padding:9px 12px;}
+    .segmented button,.sub-field .segmented button{padding:11px 4px;}
+    .check input{width:18px;height:18px;}
+  }
+
+  /* Short viewports - typically a phone held sideways. The masthead would
+     otherwise eat the whole screen before any content appears. */
+  @media (max-height:520px){
+    header{padding:10px 16px 0;}
+    header h1{font-size:18px;margin-bottom:0;}
+    .tagline,.privacy{display:none;}
+    details.about{margin-top:6px;}
+    .steps{margin-top:8px;}
+    .step{padding:6px 4px 7px;font-size:11.5px;}
+    .step-hint{padding:6px 0 8px;font-size:12.5px;}
+    .action-bar-inner{padding:7px 14px;}
+    .ab-export{padding:9px 16px;}
+    /* give the video more of the little height there is */
+    #preview-wrapper{max-width:calc(80vh * var(--ar,1.7778));}
+    body.has-action-bar{padding-bottom:76px;}
+  }
+
   a.download-btn{
     display:inline-block;padding:10px 16px;border-radius:9px;
     text-decoration:none;font-weight:700;font-size:14px;white-space:nowrap;
@@ -361,7 +422,7 @@
         <p><b>やってくれること</b>　動画の中の「立ち止まっている・景色が変わらない」ところを見つけて早送りにし、曲がり角には「右に曲がります」などのテロップを自動で入れます。仕上がりは画面で確認しながら直せます。</p>
         <p><b>曲がり角の見つけ方</b>　映像の中の景色がどちらへ流れたかを何十か所も測り、「カメラ全体が同じ向きに回った量（角度）」を計算しています。おおよそ30〜40度以上まとめて向きが変われば「曲がった」と判断します。前に進んでいるだけのときは景色が左右に広がるので、曲がったとは判定しません。</p>
         <p><b>うまく作るコツ</b>　曲がり角では一度立ち止まって、スマホを体ごとゆっくり向け直すときれいに検出されます。歩きながら急に振り向いたり、スマホだけを左右に振ると、判定を間違えやすくなります。</p>
-        <p><b>できないこと</b>　映像だけを見て判断しているので、100%正確ではありません。GPSやコンパスの情報は動画ファイルに入っていないため使えません。間違っていたら右側の一覧から直してください。</p>
+        <p><b>できないこと</b>　映像だけを見て判断しているので、100%正確ではありません。GPSやコンパスの情報は動画ファイルに入っていないため使えません。間違っていたら「自動判定の結果」の一覧から直してください。</p>
         <p><b>推奨ブラウザ</b>　Google Chrome または Microsoft Edge。Safari では書き出しがうまくいかないことがあります。</p>
       </div>
     </details>
@@ -408,16 +469,19 @@
       <div id="preview-wrapper">
         <video id="video" playsinline></video>
         <div class="telop-layer" id="telop-layer"></div>
-        <div class="telop-editor hidden" id="telop-editor">
-          <input type="text" id="te-text" maxlength="60" aria-label="テロップの文字">
-          <div class="te-row">
-            <span class="te-label">位置</span>
-            <button type="button" class="mini te-pos" data-y="12">上</button>
-            <button type="button" class="mini te-pos" data-y="50">中央</button>
-            <button type="button" class="mini te-pos" data-y="84">下</button>
-            <button type="button" class="mini danger" id="te-delete">削除</button>
-            <button type="button" class="mini" id="te-close">閉じる</button>
-          </div>
+      </div>
+      <!-- Anchored to the panel, not to the video box: on a narrow phone (or a
+           portrait clip on a landscape phone) the video area can be far too
+           small to hold this, and the video box clips its overflow. -->
+      <div class="telop-editor hidden" id="telop-editor">
+        <input type="text" id="te-text" maxlength="60" aria-label="テロップの文字">
+        <div class="te-row">
+          <span class="te-label">位置</span>
+          <button type="button" class="mini te-pos" data-y="12">上</button>
+          <button type="button" class="mini te-pos" data-y="50">中央</button>
+          <button type="button" class="mini te-pos" data-y="84">下</button>
+          <button type="button" class="mini danger" id="te-delete">削除</button>
+          <button type="button" class="mini" id="te-close">閉じる</button>
         </div>
       </div>
       <div class="controls-row">
@@ -443,7 +507,7 @@
           <span><span class="legend-dot" style="background:#221F1A;border-radius:50%;"></span>テロップ</span>
           <span style="opacity:.75;">薄いグレーの縞＝早送りする区間</span>
         </div>
-        <div class="timeline-legend" style="margin-top:2px;">帯の上をクリックするとその時間へ移動します。早送りの切り替えは右側の「自動判定の結果」から行えます。</div>
+        <div class="timeline-legend" style="margin-top:2px;">帯の上をクリックするとその時間へ移動します。早送りの切り替えは「自動判定の結果」の一覧から行えます。</div>
       </div>
     </div>
   </div>
@@ -1964,12 +2028,12 @@ function renderSummary(){
   var msgs=[];
   if(noStopsFound){
     if(f.nCruise){
-      msgs.push('立ち止まった場所はほとんど見つかりませんでした（ずっと歩き続けている動画のようです）。かわりに<b>同じ景色が続く直進を'+cruiseSpeed+'倍速</b>にして短くしています。速さや長さは右の設定で変えられます。等倍のままがよければオフにもできます。');
+      msgs.push('立ち止まった場所はほとんど見つかりませんでした（ずっと歩き続けている動画のようです）。かわりに<b>同じ景色が続く直進を'+cruiseSpeed+'倍速</b>にして短くしています。速さや長さは「自動判定の設定」で変えられます。等倍のままがよければオフにもできます。');
     }else{
-      msgs.push('立ち止まった場所はほとんど見つかりませんでした（ずっと歩き続けている動画のようです）。そのため<b>自動では早送りをほとんど入れていません</b>。長く感じる場合は、下の一覧で歩いている区間の「早送りする」にチェックを入れてください。');
+      msgs.push('立ち止まった場所はほとんど見つかりませんでした（ずっと歩き続けている動画のようです）。そのため<b>自動では早送りをほとんど入れていません</b>。長く感じる場合は、「自動判定の結果」の一覧で歩いている区間の「早送りする」にチェックを入れてください。');
     }
   }
-  if(turns===0) msgs.push('曲がり角が1つも見つかりませんでした。曲がった場所は下の一覧から「右へ曲がる／左へ曲がる」を選んで手で追加できます。');
+  if(turns===0) msgs.push('曲がり角が1つも見つかりませんでした。曲がった場所は「自動判定の結果」の一覧から「右へ曲がる／左へ曲がる」を選んで手で追加できます。');
   resultNotice.innerHTML = msgs.length ? '<div class="notice">'+msgs.join('<br><br>')+'</div>' : '';
 }
 
@@ -2455,14 +2519,19 @@ function closeTelopEditor(){
 function positionTelopEditor(){
   var tl=findTelop(editingTelopId);
   if(!tl){ closeTelopEditor(); return; }
+  // The editor is a child of the preview panel, so work in panel coordinates
+  // and offset by wherever the video box sits inside it. That lets the editor
+  // sit beside or below a very small video instead of being squeezed into it.
   var wr=previewWrapper.getBoundingClientRect();
+  var pp=previewPanel.getBoundingClientRect();
+  var offX=wr.left-pp.left, offY=wr.top-pp.top;
   var ew=telopEditor.offsetWidth, eh=telopEditor.offsetHeight;
   var fs=telopFontPx();
-  var cx=(tl.x/100)*wr.width, cy=(tl.y/100)*wr.height;
-  // flip to whichever side of the caption has room; the preview clips overflow
-  var top = (cy>wr.height*0.55) ? (cy-fs*1.4-eh-10) : (cy+fs*1.4+10);
-  telopEditor.style.left=clamp(cx-ew/2,8,Math.max(8,wr.width-ew-8))+'px';
-  telopEditor.style.top=clamp(top,8,Math.max(8,wr.height-eh-8))+'px';
+  var cx=offX+(tl.x/100)*wr.width, cy=offY+(tl.y/100)*wr.height;
+  // flip to whichever side of the caption has room
+  var top = (cy>offY+wr.height*0.55) ? (cy-fs*1.4-eh-10) : (cy+fs*1.4+10);
+  telopEditor.style.left=clamp(cx-ew/2,8,Math.max(8,pp.width-ew-8))+'px';
+  telopEditor.style.top=clamp(top,8,Math.max(8,pp.height-eh-8))+'px';
 }
 
 teText.addEventListener('input',function(){
