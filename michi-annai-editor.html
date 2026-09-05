@@ -328,22 +328,38 @@
     background:rgba(255,255,255,.97);
     border-top:1px solid var(--line-strong);
     box-shadow:0 -2px 16px rgba(34,31,26,.12);
+    /* last-resort guard: whatever ends up in here, it can never take over
+       the whole screen the way it once did */
+    max-height:55vh;overflow-y:auto;
   }
   .action-bar-inner{
     max-width:1240px;margin:0 auto;padding:11px 28px;
     display:flex;align-items:center;gap:14px;
+    /* Must be allowed to wrap. Once an export finishes this row also carries
+       the download link, which cannot shrink (nowrap). Without wrapping, the
+       text block beside it is the only thing that can give, and flexbox will
+       crush it to zero width - at which point Japanese text, having no spaces
+       to break on, wraps one character per line and the bar grows to several
+       times the height of the screen. */
+    flex-wrap:wrap;row-gap:9px;
   }
-  .ab-info{flex:1;min-width:0;}
+  /* A real floor rather than min-width:0. If it cannot be met, this block
+     wraps onto its own line instead of being starved to nothing. */
+  .ab-info{flex:1 1 240px;min-width:200px;}
   .ab-est{font-size:13.5px;font-weight:600;}
   .ab-info .status-line{margin-top:1px;min-height:0;}
   .ab-info progress{margin-top:6px;}
   .ab-export{font-size:15px;padding:12px 24px;flex:none;}
   body.has-action-bar{padding-bottom:98px;}
   @media (max-width:700px){
-    .action-bar-inner{padding:9px 14px;gap:9px;}
+    .action-bar-inner{padding:9px 14px;gap:9px;row-gap:8px;}
     .ab-export{font-size:14px;padding:11px 15px;}
     .ab-est{font-size:12.5px;}
-    body.has-action-bar{padding-bottom:104px;}
+    /* the text always gets a whole line to itself; the buttons share the next */
+    .ab-info{flex:1 1 100%;min-width:0;}
+    #download-area{flex:1 1 auto;}
+    #download-area a.download-btn{display:block;text-align:center;}
+    .ab-export{flex:1 1 auto;}
   }
   /* =====================================================================
      Responsive. The tool gets shared as a link, so plenty of people will
@@ -757,10 +773,21 @@ function escapeHtml(s){
 function raf(){ return new Promise(function(r){ requestAnimationFrame(function(){ r(); }); }); }
 
 // The export bar is fixed to the bottom of the window, so the page needs
-// matching bottom padding or the last panel hides underneath it.
+// matching bottom padding or the last panel hides underneath it. Its height
+// is not fixed - it wraps to two rows on a phone, and gains a download link
+// once an export finishes - so measure it rather than guessing a constant.
+function syncActionBarSpace(){
+  if(exportPanel.classList.contains('hidden')){
+    document.body.style.paddingBottom='';
+    return;
+  }
+  document.body.style.paddingBottom=(exportPanel.offsetHeight+14)+'px';
+}
+
 function showExportBar(v){
   exportPanel.classList.toggle('hidden', !v);
   document.body.classList.toggle('has-action-bar', v);
+  syncActionBarSpace();
 }
 
 function setStep(n){
@@ -1978,7 +2005,21 @@ function regenerateAutoTelops(){
 // =========================================================================
 // 5. rendering
 // =========================================================================
+// Any edit makes an already-exported file out of date, so retire the download
+// link and offer the export button again rather than letting someone save a
+// video that no longer matches what they are looking at.
+function invalidateExport(){
+  if(exporting) return;
+  if(!downloadArea.firstChild) return;
+  downloadArea.innerHTML='';
+  exportStatus.textContent='編集が変わりました。もう一度書き出してください。';
+  exportProgress.classList.add('hidden');
+  btnExport.classList.remove('hidden');
+  syncActionBarSpace();
+}
+
 function renderAll(){
+  invalidateExport();
   renderSummary();
   renderSegmentList();
   renderTelopList();
@@ -2163,6 +2204,7 @@ function segRate(seg){
 }
 
 function renderExportEstimate(){
+  invalidateExport();
   exportEstimate.textContent='書き出し後の長さ：約 '+fmtDur(estimatedOutputDuration())+'（元の動画は '+fmtDur(duration)+'）';
 }
 
@@ -2303,6 +2345,7 @@ timelineCanvas.addEventListener('mousemove',function(e){
 timelineCanvas.addEventListener('mouseleave',function(){ tlTip.style.opacity='0'; });
 window.addEventListener('resize',function(){
   drawTimeline(); renderTelopOverlay();
+  syncActionBarSpace();
   if(editingTelopId!==null) positionTelopEditor();
 });
 
@@ -2538,6 +2581,7 @@ teText.addEventListener('input',function(){
   var tl=findTelop(editingTelopId);
   if(!tl) return;
   tl.text=teText.value; tl.edited=true;
+  invalidateExport();
   renderTelopOverlay();
   positionTelopEditor();
   renderTelopList();     // keep the list panel showing the same text
@@ -2571,6 +2615,7 @@ document.addEventListener('keydown',function(e){
 });
 
 function renderTelopList(){
+  invalidateExport();
   telopEmpty.classList.toggle('hidden',telops.length>0);
   var html='';
   telops.forEach(function(tl){
@@ -2967,10 +3012,14 @@ async function exportVideo(){
   a.textContent='⬇ 動画をダウンロード（.'+ext+'　'+(blob.size/1048576).toFixed(1)+'MB）';
   downloadArea.appendChild(a);
   exportProgress.value=100;
-  // the bar is a single line, so the format note goes in the status text
   exportStatus.textContent = (ext==='webm')
     ? '書き出しが完了しました。WebM形式です（標準プレーヤーやYouTube、LINEでそのまま再生できます）。'
     : '書き出しが完了しました。';
+  // Once the file exists, downloading it is the only thing left to do here.
+  // Hiding the export button also keeps the bar from having to carry two
+  // competing buttons plus the text on a narrow screen.
+  btnExport.classList.add('hidden');
+  syncActionBarSpace();
 }
 
 })();
